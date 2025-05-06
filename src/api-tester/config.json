@@ -1,0 +1,321 @@
+{
+  "endpoints": [
+    {
+      "name": "Get List Sales Orders",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/salesOrders",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      "query": {
+        "filter[0][key]": "customerNumber",
+        "filter[0][op]": "equals",
+        "filter[0][value]": "16",
+        "page[number]": 1,
+        "page[size]": 50
+      },
+      "expectedStructure": "expected/Get_List_Sales_Orders_updated_v1.json",
+      "requiresId": false
+    },
+    {
+      "name": "Get View Sales Order",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/salesOrders/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      "query": {},
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Sales_Order_updated_v1.json"
+    },
+    {
+      "name": "Create New Product",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      "bodyFile": "requestBodies/createProduct.json",
+      "requiresId": false
+    },
+    {
+      "name": "Get List Products",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      "query": {
+        "order[0][field]": "id",
+        "order[0][dir]": "desc",
+        "page[number]": 1,
+        "page[size]": 10
+      },
+      "expectedStructure": "expected/Get_List_Products_updated.json",
+      "requiresId": false
+    },
+    {
+      "name": "Get View Product",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      "query": {},
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Product.json"
+    },
+    {
+      "name": "Delete Product",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}",
+      "method": "DELETE",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}"
+      },
+      "requiresId": true
+    },
+    {
+      "name": "Update Product",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}",
+      "method": "PATCH",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "bodyFile": "requestBodies/updateProduct.json",
+      "requiresId": true
+    },
+    {
+      "name": "Get List Invoices",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/invoices",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/vnd.xentral.minimal+json",
+        "Authorization": "Bearer ${BEARER_TOKEN}"
+      },
+      "expectedStructure": "expected/Get_List_Invoices_updated.json",
+      "requiresId": false
+    },
+    {
+      "name": "Get View Invoice",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/invoices/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Invoice.json"
+    },
+    {
+      "name": "Get List Customers",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v2/customers",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}"
+      },
+      "expectedStructure": "expected/Get_List_Customers_updated.json",
+      "requiresId": false,
+      "versionChanged": true
+    },
+    {
+      "name": "Get View Customer",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v2/customers/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Customer_updated.json",
+      "versionChanged": true
+    },
+    {
+      "name": "Get View Delivery Note",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/deliveryNotes/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Delivery_Note.json"
+    },
+    {
+      "name": "Get View Purchase Order",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/purchaseOrders/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Purchase_Order.json"
+    },
+    {
+      "name": "Get List Purchase Orders",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/purchaseOrders",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}"
+      },
+      "expectedStructure": "expected/Get_List_Purchase_Orders.json",
+      "requiresId": false
+    },
+    {
+      "name": "Get List Projects",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/projects",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}"
+      },
+      "expectedStructure": "expected/Get_List_Projects_updated.json",
+      "requiresId": false
+    },
+    {
+      "name": "Get View Credit Note",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/creditNotes/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Credit_Note.json"
+    },
+    {
+      "name": "Get View Liability",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/liabilities/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Liability.json"
+    },
+    {
+      "name": "Get View Suppliers",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/suppliers/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Suppliers.json"
+    },
+    {
+      "name": "Get View Return",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/returns/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Return.json"
+    },
+    {
+      "name": "Get List Returns",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/returns",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}"
+      },
+      "expectedStructure": "expected/Get_List_Returns_updated.json",
+      "requiresId": false
+    },
+    {
+      "name": "Get View Options of a Product",
+      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/options",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Options_of_a_Product.json"
+    },
+    {
+      "name": "Get View Media",
+      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/media",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Media.json"
+    },
+    {
+      "name": "Get View Purchase Prices",
+      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/purchasePrices",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Purchase_Prices.json"
+    },
+    {
+      "name": "Get View Sales Prices",
+      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/salesPrices",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Sales_Prices.json"
+    },
+    {
+      "name": "Get View Parts",
+      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/parts",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Parts.json"
+    },
+    {
+      "name": "Get View Address",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v2/customers/{customerId}/addresses/{id}",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer ${BEARER_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "requiresId": true,
+      "expectedStructure": "expected/Get_View_Address_updated.json"
+    }
+  ]
+}

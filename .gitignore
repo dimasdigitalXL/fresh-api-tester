@@ -1,0 +1,42 @@
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# Deno
+.deno/                # Deno cache & lock-Dateien
+lock.json             # Deno’s lockfile (wenn du es committest)
+cmd/**/.lock.json     # falls du mehrere Projekte in Unterordnern hast
+
+# Fresh build output
+_fresh/
+
+# Coverage (z.B. aus tortoise/coverage)
+coverage/
+
+# npm dependencies (wenn du zufällig npm nutzt)
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# Pending-Approvals (enthält sensible Freigabe-Daten)
+pending-approvals.json
+
+# IDE / Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db

@@ -1,0 +1,111 @@
+{
+  "data": [
+    {
+      "id": "1508",
+      "documentNumber": "86",
+      "externalOrderNumber": "",
+      "customerOrderNumber": "",
+      "transactionNumber": "",
+      "externalOrderId": "",
+      "date": "2025-02-25",
+      "netSales": 34.25,
+      "total": 40.76,
+      "desiredDeliveryDate": null,
+      "desiredDeliveryDateAsCalendarWeek": false,
+      "reservationDate": null,
+      "editor": "Dimas ",
+      "sales": {
+        "id": 345,
+        "name": "Dimas "
+      },
+      "status": "completed",
+      "customer": {
+        "id": "440",
+        "number": "16"
+      },
+      "comment": "",
+      "project": {
+        "id": "32"
+      },
+      "bodyOutroduction": "",
+      "language": {
+        "iso2": "deutsch"
+      },
+      "financials": {
+        "paymentMethod": {
+          "id": "13"
+        },
+        "currency": "EUR",
+        "billingAddress": {
+          "name": "DimasTest",
+          "department": "",
+          "subDepartment": "",
+          "street": "",
+          "zipCode": "86165",
+          "city": "Augsburg",
+          "state": "BY",
+          "country": "DE",
+          "type": "other",
+          "title": "",
+          "contactPerson": "",
+          "addressSupplement": "",
+          "fax": "",
+          "email": "",
+          "salutation": "",
+          "gln": "",
+          "phoneNumber": ""
+        },
+        "paymentTerms": {
+          "paymentTargetDiscount": 0,
+          "paymentTargetDays": 14,
+          "paymentTargetDiscountDays": 7
+        }
+      },
+      "delivery": {
+        "email": "",
+        "conditions": "",
+        "autoShipping": true,
+        "fastLane": false,
+        "desiredDeliveryDate": "0000-00-00",
+        "shippingMethod": {
+          "id": "1"
+        },
+        "shippingAddress": {
+          "name": "DimasTest",
+          "department": "",
+          "subDepartment": "",
+          "street": "",
+          "zipCode": "86165",
+          "city": "Augsburg",
+          "state": "BY",
+          "country": "DE",
+          "gln": ""
+        }
+      },
+      "log": {
+        "createdAt": "2025-02-25T12:42:30+01:00",
+        "createdBy": {
+          "id": "345",
+          "name": "Dimas "
+        }
+      },
+      "isBeingEdited": false,
+      "subsequentDelivery": false,
+      "shippingDateOk": true,
+      "creditLimitOk": true,
+      "shippingLockOk": true,
+      "prepaidOk": true,
+      "postageOk": true,
+      "customerCheckOk": true,
+      "vatOk": true,
+      "stockOk": false
+    }
+  ],
+  "extra": {
+    "totalCount": 1,
+    "page": {
+      "number": 1,
+      "size": 50
+    }
+  }
+}
