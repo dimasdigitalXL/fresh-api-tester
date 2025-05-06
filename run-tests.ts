@@ -1,38 +1,31 @@
-#!/usr/bin/env -S deno run -A --watch=src/**,src/api-tester/config.json
-
+// run-tests.ts
 import { loadConfig } from "./src/api-tester/core/configLoader.ts";
 import {
   runSingleEndpoint,
   VersionUpdate,
 } from "./src/api-tester/core/endpointRunner.ts";
-import { resetApprovals } from "./src/api-tester/core/resetApprovals.ts";
 import { sendSlackReport } from "./src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
+import type { TestResult } from "./src/api-tester/core/apiCaller.ts";
 
-async function main() {
-  if (!Deno.env.get("SKIP_RESET_APPROVALS")) {
-    await resetApprovals();
-  }
+export async function runAllTests(): Promise<void> {
+  const cfg = await loadConfig();
 
-  const { endpoints } = await loadConfig();
+  // Statt any[] jetzt VersionUpdate[]
   const versionUpdates: VersionUpdate[] = [];
-  const results = [];
+  // Ergebnisse als TestResult[]
+  const results: TestResult[] = [];
 
-  for (const ep of endpoints) {
-    const res = await runSingleEndpoint(ep, { endpoints }, versionUpdates);
-    if (res) results.push(res);
+  for (const ep of cfg.endpoints) {
+    const res = await runSingleEndpoint(ep, cfg, versionUpdates);
+    if (res) {
+      results.push(res);
+    }
   }
 
-  await sendSlackReport(
-    results,
-    versionUpdates.map(({ name, url, expectedStructure }) => ({
-      name,
-      url,
-      expectedStructure,
-    })),
-    { dryRun: false },
-  );
-
-  Deno.exit(0);
+  await sendSlackReport(results, versionUpdates);
 }
 
-if (import.meta.main) await main();
+// Skript direkt ausführbar machen
+if (import.meta.main) {
+  await runAllTests();
+}
