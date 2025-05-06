@@ -5,7 +5,6 @@
 /// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 
-
 import "$std/dotenv/load.ts";
 
 import { start } from "$fresh/server.ts";
@@ -19,7 +18,7 @@ import { runAllTests } from "./run-tests.ts";
 // Name = "run-tests-every-10", Schedule = "*/10 * * * *"
 
 Deno.cron(
-  "run-tests-every-10",
+  "run-tests-every-hour",
   "*/0 * * * *",
   async () => {
     console.log("⏰ [Cron] Starte API-Tests…");

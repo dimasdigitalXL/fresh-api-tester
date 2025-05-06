@@ -15,11 +15,16 @@ export const handler: Handlers = {
     const payload = JSON.parse(rawBody);
     if (payload.type === "url_verification") {
       // einfach den challenge zurückgeben
-      return new Response(payload.challenge, { headers: { "Content-Type": "text/plain" } });
+      return new Response(payload.challenge, {
+        headers: { "Content-Type": "text/plain" },
+      });
     }
 
     // Interactions (z.B. Modal-Submit)
-    if (payload.type === "view_submission" && payload.view.callback_id === "pin_submission") {
+    if (
+      payload.type === "view_submission" &&
+      payload.view.callback_id === "pin_submission"
+    ) {
       // handlePinSubmission erwartet parsed JSON mit genau diesem Shape
       await handlePinSubmission(payload);
       // Slack will ein JSON mit null, sonst Timeout

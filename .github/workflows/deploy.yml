@@ -32,5 +32,3 @@ jobs:
           project: "digitalxl-fresh-api-tester"
           entrypoint: "main.ts"
           root: "."
-          
-          
