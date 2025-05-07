@@ -33,7 +33,8 @@
     "lead": {
       "isLead": false,
       "status": "string"
-    }
+    },
+    "contactPerson": "string"
   },
   "links": {
     "self": "string",

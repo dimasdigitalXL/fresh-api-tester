@@ -16,7 +16,7 @@
     },
     "amountGross": 0,
     "amountNet": 0,
-    "costCenter": "string",
+    "costCenter": "",
     "status": "string",
     "project": {
       "id": "string",
@@ -27,16 +27,16 @@
       "id": "string",
       "name": "string"
     },
-    "externalOrderReference": "string",
+    "externalOrderReference": "",
     "devCustomer": "string",
     "billingAddress": {
       "id": "string",
       "name": "string",
-      "contactPerson": "string",
-      "department": "string",
-      "subdivision": "string",
+      "contactPerson": "",
+      "department": "",
+      "subdivision": "",
       "street": "string",
-      "additionalDetails": "string",
+      "additionalDetails": "",
       "city": "string",
       "zipCode": "string",
       "country": "string",
@@ -46,7 +46,7 @@
     "paymentStatus": "string",
     "dunning": "string",
     "dunningDate": "string",
-    "gln": "string",
+    "gln": "",
     "taxation": 0,
     "tags": [],
     "positions": [
@@ -63,7 +63,7 @@
           "amount": "string",
           "currency": "string"
         },
-        "vatCategory": "string",
+        "vatCategory": "",
         "taxRate": 0,
         "discount": 0
       }
@@ -76,7 +76,7 @@
     "dunningSettings": {
       "level": "string",
       "date": "string",
-      "comment": "string",
+      "comment": "",
       "sent": false
     },
     "dunningManualSettings": null

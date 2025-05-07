@@ -81,9 +81,7 @@
         "state": "string",
         "country": "string",
         "gln": "string"
-      },
-      "preferredWarehouse": null,
-      "storageCountry": null
+      }
     },
     "netSales": {
       "amount": "string",

@@ -5,7 +5,7 @@
     "salesOrder": {
       "id": "string"
     },
-    "customerOrderNumber": "string",
+    "customerOrderNumber": "",
     "updatedAt": "string",
     "date": "string",
     "status": "string",

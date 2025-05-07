@@ -10,9 +10,9 @@
       "date": "string",
       "netSales": 0,
       "total": 0,
-      "desiredDeliveryDate": null,
+      "desiredDeliveryDate": "string",
       "desiredDeliveryDateAsCalendarWeek": false,
-      "reservationDate": null,
+      "reservationDate": "string",
       "editor": "string",
       "sales": {
         "id": 0,
@@ -23,18 +23,13 @@
         "id": "string",
         "number": "string"
       },
-      "comment": "string",
       "project": {
         "id": "string"
       },
-      "bodyOutroduction": "string",
       "language": {
         "iso2": "string"
       },
       "financials": {
-        "paymentMethod": {
-          "id": "string"
-        },
         "currency": "string",
         "billingAddress": {
           "name": "string",
@@ -54,6 +49,9 @@
           "salutation": "string",
           "gln": "string",
           "phoneNumber": "string"
+        },
+        "paymentMethod": {
+          "id": "string"
         },
         "paymentTerms": {
           "paymentTargetDiscount": 0,
@@ -82,6 +80,8 @@
           "gln": "string"
         }
       },
+      "comment": "string",
+      "bodyOutroduction": "string",
       "log": {
         "createdAt": "string",
         "createdBy": {

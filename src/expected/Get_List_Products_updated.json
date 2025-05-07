@@ -18,27 +18,15 @@
       "standardSupplier": null,
       "stockCount": 0,
       "stockStats": {
-        "purchasedCount": "string",
+        "purchasedCount": null,
         "totalCount": null,
-        "availableCount": "string",
-        "inProductionCount": "string"
+        "availableCount": null,
+        "inProductionCount": null
       },
-      "purchasePriceNet": {
-        "currency": "string",
-        "amount": "string"
-      },
-      "purchasePriceGross": {
-        "currency": "string",
-        "amount": "string"
-      },
-      "salesPriceNet": {
-        "currency": "string",
-        "amount": "string"
-      },
-      "salesPriceGross": {
-        "currency": "string",
-        "amount": "string"
-      },
+      "purchasePriceNet": null,
+      "purchasePriceGross": null,
+      "salesPriceNet": null,
+      "salesPriceGross": null,
       "shopPriceDisplay": null,
       "ean": "string",
       "manufacturerName": "string",
