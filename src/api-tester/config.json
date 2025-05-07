@@ -113,7 +113,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Invoice.json"
+      "expectedStructure": "expected/Get_View_Invoice_updated_v1.json"
     },
     {
       "name": "Get List Customers",
@@ -150,7 +150,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Delivery_Note.json"
+      "expectedStructure": "expected/Get_View_Delivery_Note_v1.json"
     },
     {
       "name": "Get View Purchase Order",
@@ -162,7 +162,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Purchase_Order.json"
+      "expectedStructure": "expected/Get_View_Purchase_Order_updated_v1.json"
     },
     {
       "name": "Get List Purchase Orders",
@@ -172,7 +172,7 @@
         "Accept": "application/json",
         "Authorization": "Bearer ${BEARER_TOKEN}"
       },
-      "expectedStructure": "expected/Get_List_Purchase_Orders.json",
+      "expectedStructure": "expected/Get_List_Purchase_Orders_v1.json",
       "requiresId": false
     },
     {
@@ -196,7 +196,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Credit_Note.json"
+      "expectedStructure": "expected/Get_View_Credit_Note_updated_v1.json"
     },
     {
       "name": "Get View Liability",
@@ -208,7 +208,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Liability.json"
+      "expectedStructure": "expected/Get_View_Liability_updated_v1.json"
     },
     {
       "name": "Get View Suppliers",
@@ -220,7 +220,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Suppliers.json"
+      "expectedStructure": "expected/Get_View_Suppliers_updated_v1.json"
     },
     {
       "name": "Get View Return",
@@ -232,7 +232,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Return.json"
+      "expectedStructure": "expected/Get_View_Return_updated_v1.json"
     },
     {
       "name": "Get List Returns",
