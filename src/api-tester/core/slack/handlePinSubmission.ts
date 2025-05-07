@@ -51,7 +51,10 @@ export async function handlePinSubmission(
   }
 
   // 1) pending-approvals.json updaten
-  const approvalsPath = resolveProjectPath("api-tester", "pending-approvals.json");
+  const approvalsPath = resolveProjectPath(
+    "api-tester",
+    "pending-approvals.json",
+  );
   if (existsSync(approvalsPath)) {
     const raw = await Deno.readTextFile(approvalsPath);
     const approvals = JSON.parse(raw) as Record<string, string>;
@@ -64,7 +67,9 @@ export async function handlePinSubmission(
   const configPath = resolveProjectPath("api-tester", "config.json");
   if (updatedFile && existsSync(configPath)) {
     const rawCfg = await Deno.readTextFile(configPath);
-    const cfg = JSON.parse(rawCfg) as { endpoints: Array<Record<string, unknown>> };
+    const cfg = JSON.parse(rawCfg) as {
+      endpoints: Array<Record<string, unknown>>;
+    };
     const entry = cfg.endpoints.find(
       (e) => (e.name as string).replace(/\s+/g, "_") === endpoint,
     );
@@ -101,8 +106,18 @@ export async function handlePinSubmission(
     ];
     await axios.post(
       "https://slack.com/api/chat.update",
-      { channel, ts: originalTs, text: `✅ ${userName} hat *${endpoint}* freigegeben.`, blocks: [...cleaned, ...newSection] },
-      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } },
+      {
+        channel,
+        ts: originalTs,
+        text: `✅ ${userName} hat *${endpoint}* freigegeben.`,
+        blocks: [...cleaned, ...newSection],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
     );
   }
 

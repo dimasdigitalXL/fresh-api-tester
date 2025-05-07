@@ -150,7 +150,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Delivery_Note_v1.json"
+      "expectedStructure": "expected/Get_View_Delivery_Note.json"
     },
     {
       "name": "Get View Purchase Order",
@@ -172,7 +172,7 @@
         "Accept": "application/json",
         "Authorization": "Bearer ${BEARER_TOKEN}"
       },
-      "expectedStructure": "expected/Get_List_Purchase_Orders_v1.json",
+      "expectedStructure": "expected/Get_List_Purchase_Orders.json",
       "requiresId": false
     },
     {

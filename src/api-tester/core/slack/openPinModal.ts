@@ -62,6 +62,9 @@ export async function openPinModal({
 
   const json = await resp.json();
   if (!json.ok) {
-    console.error("🚨 Slack API views.open fehlgeschlagen:", json.error ?? json);
+    console.error(
+      "🚨 Slack API views.open fehlgeschlagen:",
+      json.error ?? json,
+    );
   }
 }
