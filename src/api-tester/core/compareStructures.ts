@@ -14,14 +14,10 @@ export interface CompareResult {
 
 /**
  * Vergleicht zwei verschachtelte JSON-Strukturen (expected vs. actual).
- * Gibt Listen mit Abweichungen zurück:
+ * Meldet:
  * - missingFields: Felder, die im actual fehlen
- * - extraFields: Felder, die im actual vorkommen, aber nicht im expected
- * - typeMismatches: Felder, die in beiden vorkommen, aber unterschiedlichen Typ haben
- *
- * @param expected - Erwartete Struktur (z. B. aus expected/*.json)
- * @param actual - Tatsächlich zurückgegebene API-Response (transformiert)
- * @param path - Interner Pfad für verschachtelte Felder (rekursiv genutzt)
+ * - extraFields: Felder, die im actual extra sind
+ * - typeMismatches: Felder mit falschem Typ (inkl. null vs. string etc.)
  */
 export function compareStructures(
   expected: unknown,
@@ -32,7 +28,7 @@ export function compareStructures(
   const extraFields: string[] = [];
   const typeMismatches: TypeMismatch[] = [];
 
-  // Sonderfall: Arrays → vergleiche nur erstes Element
+  // 1) Arrays: vergleiche nur das erste Element
   if (Array.isArray(expected) && Array.isArray(actual)) {
     if (expected.length > 0 && actual.length > 0) {
       return compareStructures(expected[0], actual[0], path);
@@ -40,30 +36,74 @@ export function compareStructures(
     return { missingFields, extraFields, typeMismatches };
   }
 
-  // Wenn einer der Werte kein Objekt ist (inkl. null) → Abbruch
-  if (
-    typeof expected !== "object" ||
-    expected === null ||
-    typeof actual !== "object" ||
-    actual === null
-  ) {
+  // 2) Array vs. Kein Array → Typabweichung
+  if (Array.isArray(expected) && !Array.isArray(actual)) {
+    typeMismatches.push({
+      path: path || "<root>",
+      expected: "array",
+      actual: typeof actual,
+    });
+    return { missingFields, extraFields, typeMismatches };
+  }
+  if (!Array.isArray(expected) && Array.isArray(actual)) {
+    typeMismatches.push({
+      path: path || "<root>",
+      expected: typeof expected,
+      actual: "array",
+    });
     return { missingFields, extraFields, typeMismatches };
   }
 
-  // Jetzt sind both expected & actual non-null objects
+  // 3) Primitive (inkl. null) vs. Primitive → Typvergleich
+  const expIsPrimitive = expected === null || typeof expected !== "object";
+  const actIsPrimitive = actual === null || typeof actual !== "object";
+
+  if (expIsPrimitive && actIsPrimitive) {
+    const expType = expected === null ? "null" : typeof expected;
+    const actType = actual === null ? "null" : typeof actual;
+    if (expType !== actType) {
+      typeMismatches.push({
+        path: path || "<root>",
+        expected: expType,
+        actual: actType,
+      });
+    }
+    return { missingFields, extraFields, typeMismatches };
+  }
+
+  // 4) Objekt vs. non-Objekt → Typabweichung (falls eines Objekt, anderes nicht)
+  const expIsObj = typeof expected === "object" && expected !== null;
+  const actIsObj = typeof actual === "object" && actual !== null;
+  if (expIsObj && !actIsObj) {
+    typeMismatches.push({
+      path: path || "<root>",
+      expected: "object",
+      actual: Array.isArray(actual) ? "array" : typeof actual,
+    });
+    return { missingFields, extraFields, typeMismatches };
+  }
+  if (!expIsObj && actIsObj) {
+    typeMismatches.push({
+      path: path || "<root>",
+      expected: Array.isArray(expected) ? "array" : typeof expected,
+      actual: "object",
+    });
+    return { missingFields, extraFields, typeMismatches };
+  }
+
+  // 5) Jetzt sind beide non-null Objects
   const expObj = expected as Record<string, unknown>;
   const actObj = actual as Record<string, unknown>;
 
-  // 1. Fehlende Felder & Typabweichungen
+  // 5a) Fehlende Felder & Typabweichungen in gemeinsamen Feldern
   for (const key of Object.keys(expObj)) {
     const currentPath = path ? `${path}.${key}` : key;
     if (!(key in actObj)) {
-      // komplett fehlt
       missingFields.push(currentPath);
     } else {
       const expVal = expObj[key];
       const actVal = actObj[key];
-      // wenn beide Objekte (nicht Arrays) → rekursiv vergleichen
+      // beide verschachtelte Objekte → rekursiv prüfen
       if (
         typeof expVal === "object" &&
         expVal !== null &&
@@ -76,19 +116,33 @@ export function compareStructures(
         missingFields.push(...sub.missingFields);
         extraFields.push(...sub.extraFields);
         typeMismatches.push(...sub.typeMismatches);
-      } else if (typeof expVal !== typeof actVal) {
-        // primitiver Typ mismatch
+      } else if (
+        // primitiver Typ-Mismatch oder null vs. primitive
+        (expVal === null || typeof expVal !== "object") &&
+        (actVal === null || typeof actVal !== "object") &&
+        (expVal === null ? actVal !== null : typeof expVal !== typeof actVal)
+      ) {
+        const expType = expVal === null ? "null" : typeof expVal;
+        const actType = actVal === null ? "null" : typeof actVal;
         typeMismatches.push({
           path: currentPath,
-          expected: typeof expVal,
-          actual: typeof actVal,
+          expected: expType,
+          actual: actType,
+        });
+      } else if (
+        // Array im einen und primitive/im anderen
+        Array.isArray(expVal) !== Array.isArray(actVal)
+      ) {
+        typeMismatches.push({
+          path: currentPath,
+          expected: Array.isArray(expVal) ? "array" : typeof expVal,
+          actual: Array.isArray(actVal) ? "array" : typeof actVal,
         });
       }
-      // Arrays wurden oben behandelt
     }
   }
 
-  // 2. Zusätzliche Felder in actual
+  // 5b) Zusätzliche Felder in actual
   for (const key of Object.keys(actObj)) {
     if (!(key in expObj)) {
       const currentPath = path ? `${path}.${key}` : key;

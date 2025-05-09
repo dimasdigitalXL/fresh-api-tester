@@ -40,6 +40,7 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
         },
       },
     ];
+
     if (missing.length) {
       blocks.push({
         type: "context",
@@ -49,14 +50,33 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
         }],
       });
     }
+
     if (extra.length) {
+      blocks.push({
+        type: "context",
+        elements: [{
+          type: "mrkdwn",
+          text: `➕ Neue Felder: ${extra.join(", ")}`,
+        }],
+      });
+    }
+
+    if (types.length) {
+      blocks.push({
+        type: "context",
+        elements: [{
+          type: "mrkdwn",
+          text: `⚠️ *Typabweichungen:*\n${types.join("\n")}`,
+        }],
+      });
+    }
+
+    // ⚙️ Buttons immer anhängen, sobald es irgendeine Abweichung gibt
+    if (missing.length || extra.length || types.length) {
+      const key = issue.endpointName.replace(/\s+/g, "_");
       blocks.push(
         {
-          type: "context",
-          elements: [{
-            type: "mrkdwn",
-            text: `➕ Neue Felder: ${extra.join(", ")}`,
-          }],
+          type: "divider",
         },
         {
           type: "actions",
@@ -67,29 +87,26 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
               text: { type: "plain_text", text: "✅ Einverstanden" },
               style: "primary",
               action_id: "open_pin_modal",
-              value: issue.endpointName.replace(/\s+/g, "_"),
+              value: key,
             },
             {
               type: "button",
               text: { type: "plain_text", text: "⏸️ Warten" },
               style: "danger",
               action_id: "wait_action",
-              value: issue.endpointName.replace(/\s+/g, "_"),
+              value: key,
             },
           ],
         },
+        {
+          type: "divider",
+        },
       );
+    } else {
+      // Keine Abweichung → kein Block
+      blocks.push({ type: "divider" });
     }
-    if (types.length) {
-      blocks.push({
-        type: "context",
-        elements: [{
-          type: "mrkdwn",
-          text: `⚠️ *Typabweichungen:*\n${types.join("\n")}`,
-        }],
-      });
-    }
-    blocks.push({ type: "divider" });
+
     return blocks;
   });
 }

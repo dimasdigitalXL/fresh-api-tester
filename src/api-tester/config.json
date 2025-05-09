@@ -31,17 +31,6 @@
       "expectedStructure": "expected/Get_View_Sales_Order_updated_v1.json"
     },
     {
-      "name": "Create New Product",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products",
-      "method": "POST",
-      "headers": {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      "bodyFile": "requestBodies/createProduct.json",
-      "requiresId": false
-    },
-    {
       "name": "Get List Products",
       "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products",
       "method": "GET",
@@ -64,9 +53,8 @@
       "method": "GET",
       "headers": {
         "Accept": "application/json",
-        "Content-Type": "application/json"
+        "Authorization": "Bearer ${BEARER_TOKEN}"
       },
-      "query": {},
       "requiresId": true,
       "expectedStructure": "expected/Get_View_Product.json"
     },
@@ -81,18 +69,6 @@
       "requiresId": true
     },
     {
-      "name": "Update Product",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}",
-      "method": "PATCH",
-      "headers": {
-        "Accept": "application/json",
-        "Authorization": "Bearer ${BEARER_TOKEN}",
-        "Content-Type": "application/json"
-      },
-      "bodyFile": "requestBodies/updateProduct.json",
-      "requiresId": true
-    },
-    {
       "name": "Get List Invoices",
       "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/invoices",
       "method": "GET",
@@ -100,7 +76,7 @@
         "Accept": "application/vnd.xentral.minimal+json",
         "Authorization": "Bearer ${BEARER_TOKEN}"
       },
-      "expectedStructure": "expected/Get_List_Invoices_updated.json",
+      "expectedStructure": "expected/Get_List_Invoices.json",
       "requiresId": false
     },
     {
@@ -123,7 +99,7 @@
         "Accept": "application/json",
         "Authorization": "Bearer ${BEARER_TOKEN}"
       },
-      "expectedStructure": "expected/Get_List_Customers_updated_v1.json",
+      "expectedStructure": "expected/Get_List_Customers.json",
       "requiresId": false,
       "versionChanged": true
     },
@@ -247,7 +223,7 @@
     },
     {
       "name": "Get View Options of a Product",
-      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/options",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/options",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -259,7 +235,7 @@
     },
     {
       "name": "Get View Media",
-      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/media",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/media",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -271,7 +247,7 @@
     },
     {
       "name": "Get View Purchase Prices",
-      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/purchasePrices",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/purchasePrices",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -283,7 +259,7 @@
     },
     {
       "name": "Get View Sales Prices",
-      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/salesPrices",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/salesPrices",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -295,7 +271,7 @@
     },
     {
       "name": "Get View Parts",
-      "url": "https://${XENTRAL_ID}.xentral.biz/v1/products/{id}/parts",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/parts",
       "method": "GET",
       "headers": {
         "Accept": "application/json",

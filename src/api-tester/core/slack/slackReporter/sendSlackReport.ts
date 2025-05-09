@@ -33,6 +33,9 @@ export async function sendSlackReport(
     console.log("⚠️ Kritische Fehler bei den folgenden Endpunkten:");
     testResults.filter((r) => r.isCritical).forEach((r) => {
       console.log(`- ${r.endpointName} (${r.method})`);
+      console.log(
+        `  Fehlerdetails: ${r.errorDetails ?? "Keine weiteren Details"}`,
+      );
     });
   }
 
@@ -41,9 +44,12 @@ export async function sendSlackReport(
   const versions = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
     : [];
+
+  // Hier wird `renderIssueBlocks` mit allen Fehlern und fehlenden Feldern aufgerufen
   const issues = renderIssueBlocks(
     testResults.filter((r) => !r.success || r.isCritical),
   );
+
   const stats = renderStatsBlock(total, success, warnings, criticals);
 
   // 4) Blöcke zusammenstellen

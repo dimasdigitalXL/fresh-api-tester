@@ -5,24 +5,46 @@ import { validateSignature } from "../../src/api-tester/core/slack/validateSigna
 import { openPinModal } from "../../src/api-tester/core/slack/openPinModal.ts";
 import { handlePinSubmission } from "../../src/api-tester/core/slack/handlePinSubmission.ts";
 
+// NEU:
+import { slackDebugEvents } from "../../src/api-tester/core/slack/debugStore.ts";
+
 export const handler: Handlers = {
-  // Optional: Health-Check
   GET() {
     return new Response("Slack-Endpoint OK", { status: 200 });
   },
 
   async POST(req) {
-    // 1️⃣ Raw Body einlesen
     const rawBody = await req.text();
 
-    // 2️⃣ Signatur prüfen (zwei Argumente!)
+    // Debug: rohes Event festhalten
+    try {
+      const contentType = req.headers.get("content-type") ?? "";
+      let parsed: unknown = rawBody;
+      if (contentType.includes("application/json")) {
+        parsed = JSON.parse(rawBody);
+      } else if (contentType.includes("application/x-www-form-urlencoded")) {
+        const params = new URLSearchParams(rawBody);
+        parsed = JSON.parse(params.get("payload")!);
+      }
+      slackDebugEvents.unshift({
+        time: Date.now(),
+        type: req.headers.get("x-slack-event-type") ?? "block_actions",
+        rawPayload: parsed,
+      });
+      // Begrenze auf die letzten 20 Einträge
+      if (slackDebugEvents.length > 20) slackDebugEvents.pop();
+    } catch (_) {
+      // swallow
+    }
+
+    // Signatur-Check / URL-Verification / Interactivity-Flow …
     if (!(await validateSignature(req, rawBody))) {
       return new Response("Invalid signature", { status: 401 });
     }
 
     const contentType = req.headers.get("content-type") ?? "";
 
-    // 3️⃣ URL-Verification (nur beim Setup)
+    // URL-Verification
     if (contentType.includes("application/json")) {
       const body = JSON.parse(rawBody);
       if (body.type === "url_verification") {
@@ -34,34 +56,34 @@ export const handler: Handlers = {
       return new Response("", { status: 200 });
     }
 
-    // 4️⃣ Interaktive Payloads (Buttons / Modals)
+    // Interaktive Payloads
     if (contentType.includes("application/x-www-form-urlencoded")) {
       const params = new URLSearchParams(rawBody);
       const payload = JSON.parse(params.get("payload")!);
 
-      // 4a) Button-Klick → Modal öffnen
       if (payload.type === "block_actions") {
-        const action = payload.actions[0];
-        await openPinModal({
+        const ack = new Response("", { status: 200 });
+        void openPinModal({
           triggerId: payload.trigger_id,
-          endpoint: action.value,
+          endpoint: payload.actions[0].value,
           messageTs: payload.message.ts,
           channelId: payload.channel.id,
         });
+        return ack;
       }
 
-      // 4b) Modal-Submit → PIN verarbeiten
       if (
         payload.type === "view_submission" &&
         payload.view.callback_id === "pin_submission"
       ) {
-        await handlePinSubmission(payload);
+        const ack = new Response("", { status: 200 });
+        void handlePinSubmission(payload);
+        return ack;
       }
 
       return new Response("", { status: 200 });
     }
 
-    // 5️⃣ Fallback
     return new Response("", { status: 200 });
   },
 };

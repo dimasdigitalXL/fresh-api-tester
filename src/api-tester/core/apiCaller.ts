@@ -1,25 +1,16 @@
+// src/api-tester/core/apiCaller.ts
+
 import axios from "https://esm.sh/axios@1.4.0";
 import {
   ensureFileSync,
   existsSync,
 } from "https://deno.land/std@0.216.0/fs/mod.ts";
-import { basename } from "https://deno.land/std@0.216.0/path/mod.ts";
+import { basename, join } from "https://deno.land/std@0.216.0/path/mod.ts";
 import { getNextUpdatedPath, transformValues } from "./structureAnalyzer.ts";
 import { compareStructures } from "./compareStructures.ts";
 import { resolveProjectPath } from "./utils.ts";
-import { getSlackWorkspaces } from "./slack/slackWorkspaces.ts"; // Korrekt importiert
 
-/** Diese Literal‑Typen erlauben nur genau diese fünf HTTP‑Methoden */
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-
-export interface Endpoint {
-  name: string;
-  url: string;
-  method: Method;
-  expectedStructure?: string;
-  query?: Record<string, string>;
-  bodyFile?: string;
-}
 
 export interface TestResult {
   endpointName: string;
@@ -28,6 +19,7 @@ export interface TestResult {
   isCritical: boolean;
   statusCode: number | null;
   errorMessage: string | null;
+  errorDetails?: string;
   missingFields: string[];
   extraFields: string[];
   typeMismatches: Array<{
@@ -38,10 +30,20 @@ export interface TestResult {
   updatedStructure: string | null;
 }
 
+export interface Endpoint {
+  name: string;
+  url: string;
+  method: Method;
+  expectedStructure?: string;
+  query?: Record<string, string>;
+  bodyFile?: string;
+  headers?: Record<string, string>;
+}
+
 export async function testEndpoint(
   endpoint: Endpoint,
   dynamicParams: Record<string, string> = {},
-  _config?: { endpoints: Endpoint[] },
+  config?: { endpoints: Endpoint[] },
 ): Promise<TestResult> {
   try {
     // 1) Platzhalter ersetzen
@@ -58,36 +60,78 @@ export async function testEndpoint(
       ? "?" + new URLSearchParams(endpoint.query).toString()
       : "";
 
-    // 3) Request ausführen
-    console.log(`🔄 Anfrage an: ${url}${qs}`); // Logge die angeforderte URL
+    // 3) Body laden
+    let data: unknown = undefined;
+    if (
+      ["POST", "PUT", "PATCH"].includes(endpoint.method) &&
+      endpoint.bodyFile
+    ) {
+      const bf = resolveProjectPath(endpoint.bodyFile);
+      if (existsSync(bf)) {
+        const raw = await Deno.readTextFile(bf);
+        data = JSON.parse(raw);
+      }
+    }
 
+    // 4) Headers aus config lesen (oder Standard setzen)
+    const headersConfig = endpoint.headers ?? {};
+    const headers: Record<string, string> = {
+      ...headersConfig,
+      // Immer sicherstellen, dass Authorization aus ENV kommt
+      Authorization: headersConfig.Authorization?.includes("${BEARER_TOKEN}")
+        ? headersConfig.Authorization.replace(
+          "${BEARER_TOKEN}",
+          Deno.env.get("BEARER_TOKEN") ?? "",
+        )
+        : headersConfig.Authorization ??
+          `Bearer ${Deno.env.get("BEARER_TOKEN")}`,
+    };
+
+    // 4.1) Debug-Log: URL + Header
+    const fullUrl = `${url}${qs}`;
+    console.log("▶️ Request für", endpoint.name);
+    console.log("   URL:   ", fullUrl);
+    console.log("   Header:", JSON.stringify(headers));
+
+    // 5) Request ausführen
     const resp = await axios.request({
-      url: `${url}${qs}`,
+      url: fullUrl,
       method: endpoint.method,
-      data: undefined, // Hier wird data korrekt initialisiert
-      headers: {
-        Authorization: `Bearer ${Deno.env.get("BEARER_TOKEN")}`,
-        Accept: "application/json",
-        ...(endpoint.method !== "GET"
-          ? { "Content-Type": "application/json" }
-          : {}),
-      },
+      data,
+      headers,
       validateStatus: () => true,
     });
-    const status = resp.status;
-    const responseData = resp.data ?? {};
 
-    console.log(`🚀 Antwort von ${endpoint.name}:`, responseData); // Logge die API-Antwort
+    // 5.1) 2xx als Erfolg, alles andere als kritischen Fehler behandeln
+    if (resp.status < 200 || resp.status >= 300) {
+      const msg = `HTTP ${resp.status} (${resp.statusText || "Not OK"})`;
+      console.error(`❌ API-Fehler für ${endpoint.name}: ${msg}`);
+      return {
+        endpointName: endpoint.name,
+        method: endpoint.method,
+        success: false,
+        isCritical: true,
+        statusCode: resp.status,
+        errorMessage: null,
+        errorDetails: msg,
+        missingFields: [],
+        extraFields: [],
+        typeMismatches: [],
+        updatedStructure: null,
+      };
+    }
 
-    // 4) Kein expectedStructure → skip
+    console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
+    console.log("API Antwort:", JSON.stringify(resp.data, null, 2));
+
+    // 6) Wenn kein expectedStructure → Erfolg
     if (!endpoint.expectedStructure) {
-      console.warn(`⚠️ Kein expectedStructure für ${endpoint.name} gefunden!`);
       return {
         endpointName: endpoint.name,
         method: endpoint.method,
         success: true,
         isCritical: false,
-        statusCode: status,
+        statusCode: resp.status,
         errorMessage: null,
         missingFields: [],
         extraFields: [],
@@ -96,96 +140,139 @@ export async function testEndpoint(
       };
     }
 
-    // 5) Erwartete Struktur laden
+    // 7) Erwartete Struktur laden
     const expectedPath = resolveProjectPath(endpoint.expectedStructure);
-    let expected: unknown = {};
-    if (existsSync(expectedPath)) {
-      const txt = await Deno.readTextFile(expectedPath);
-      expected = JSON.parse(txt);
-    } else {
-      console.warn(`⚠️ Fehlende erwartete Datei: ${expectedPath}`);
+    if (!existsSync(expectedPath)) {
+      const msg = `Erwartete Datei nicht gefunden: ${expectedPath}`;
+      console.warn(`⚠️ ${msg}`);
+      return {
+        endpointName: endpoint.name,
+        method: endpoint.method,
+        success: false,
+        isCritical: true,
+        statusCode: resp.status,
+        errorMessage: null,
+        errorDetails: msg,
+        missingFields: [],
+        extraFields: [],
+        typeMismatches: [],
+        updatedStructure: null,
+      };
     }
+    const expectedText = await Deno.readTextFile(expectedPath);
+    const expected = JSON.parse(expectedText);
 
-    // 6) Vergleichen
-    const transformed = transformValues(responseData);
+    console.log(
+      `🔍 Geladene erwartete Struktur (${endpoint.expectedStructure}):`,
+    );
+    console.log(JSON.stringify(expected, null, 2));
+
+    // 8) Vergleichen
+    const transformed = transformValues(resp.data ?? {});
+    console.log("🔍 Transformierte API-Antwort:");
+    console.log(JSON.stringify(transformed, null, 2));
+
     const { missingFields, extraFields, typeMismatches } = compareStructures(
       expected,
       transformed,
     );
+    const hasDiff = missingFields.length > 0 ||
+      extraFields.length > 0 ||
+      typeMismatches.length > 0;
 
-    // 7) Wenn Unterschiede gefunden, logge sie
-    if (missingFields.length || extraFields.length || typeMismatches.length) {
-      console.log(`🔴 Unterschiede gefunden bei ${endpoint.name}:`);
-      console.log("Fehlende Felder:", missingFields);
-      console.log("Zusätzliche Felder:", extraFields);
-      console.log("Typabweichungen:", typeMismatches);
+    // 9) errorDetails generieren
+    let errorDetails: string | undefined;
+    if (hasDiff) {
+      const parts: string[] = [];
+      if (missingFields.length > 0) {
+        parts.push(`Fehlende Felder: ${missingFields.join(", ")}`);
+      }
+      if (extraFields.length > 0) {
+        parts.push(`Unerwartete Felder: ${extraFields.join(", ")}`);
+      }
+      if (typeMismatches.length > 0) {
+        parts.push(
+          `Typabweichungen: ${
+            typeMismatches
+              .map((t) =>
+                `${t.path} (erwartet ${t.expected}, actual ${t.actual})`
+              )
+              .join("; ")
+          }`,
+        );
+      }
+      errorDetails = parts.join(" | ");
+      console.warn(`⚠️ Abweichungen bei ${endpoint.name}: ${errorDetails}`);
+    } else {
+      console.log(`✅ Struktur stimmt für ${endpoint.name}`);
     }
 
+    // 10) Neue Struktur speichern
     let updatedStructure: string | null = null;
-    if (missingFields.length || extraFields.length || typeMismatches.length) {
-      // 8) Neue Struktur speichern, falls Unterschiede
+    if (hasDiff) {
       const baseName = endpoint.name.replace(/\s+/g, "_");
       const nextPath = getNextUpdatedPath(baseName);
       ensureFileSync(nextPath);
       await Deno.writeTextFile(nextPath, JSON.stringify(transformed, null, 2));
-      console.log(`📄 Neue Struktur gespeichert: ${nextPath}`);
+      console.log(`📄 Saved updated structure: ${nextPath}`);
       updatedStructure = basename(nextPath);
+
+      // 11) Genehmigte Struktur in config übernehmen
+      if (config && endpoint.expectedStructure) {
+        const approvalsPath = resolveProjectPath("pending-approvals.json");
+        if (existsSync(approvalsPath)) {
+          const raw = await Deno.readTextFile(approvalsPath);
+          const approvals = JSON.parse(raw) as Record<string, string>;
+          const key = baseName;
+          if (approvals[key] === "approved") {
+            const ep = config.endpoints.find((e) => e.name === endpoint.name);
+            if (ep) {
+              ep.expectedStructure = join("expected", updatedStructure);
+              await Deno.writeTextFile(
+                resolveProjectPath("config.json"),
+                JSON.stringify(config, null, 2),
+              );
+              console.log(`🛠️ config.json updated: ${ep.expectedStructure}`);
+            }
+            approvals[key] = "waiting";
+            await Deno.writeTextFile(
+              approvalsPath,
+              JSON.stringify(approvals, null, 2),
+            );
+          }
+        }
+      }
     }
 
+    // 12) TestResult zurückgeben
     return {
       endpointName: endpoint.name,
       method: endpoint.method,
-      success:
-        !(missingFields.length || extraFields.length || typeMismatches.length),
-      isCritical: false,
-      statusCode: status,
+      success: !hasDiff,
+      isCritical: hasDiff,
+      statusCode: resp.status,
       errorMessage: null,
+      errorDetails,
       missingFields,
       extraFields,
       typeMismatches,
       updatedStructure,
     };
   } catch (err) {
-    console.error(`❌ Fehler bei ${endpoint.name}:`, err);
-    // Sende eine Slack-Nachricht über den Fehler
-    await sendSlackErrorReport(
-      endpoint,
-      err instanceof Error ? err.message : String(err),
-    );
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`❌ Error in ${endpoint.name}:`, msg);
     return {
       endpointName: endpoint.name,
       method: endpoint.method,
       success: false,
       isCritical: true,
       statusCode: null,
-      errorMessage: err instanceof Error ? err.message : String(err),
+      errorMessage: msg,
+      errorDetails: msg,
       missingFields: [],
       extraFields: [],
       typeMismatches: [],
       updatedStructure: null,
     };
   }
-}
-
-async function sendSlackErrorReport(endpoint: Endpoint, errorMessage: string) {
-  const workspaces = getSlackWorkspaces();
-  const text =
-    `❌ Fehler bei API-Aufruf: *${endpoint.name}* (${endpoint.method})\n\nFehler: ${errorMessage}`;
-
-  for (const { token, channel } of workspaces) {
-    await axios.post(
-      "https://slack.com/api/chat.postMessage",
-      {
-        channel,
-        text,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-  }
-  console.log("📩 Fehlerbericht an Slack gesendet.");
 }
