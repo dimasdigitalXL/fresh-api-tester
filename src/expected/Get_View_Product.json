@@ -1,7 +1,6 @@
 {
   "data": {
     "id": "string",
-    "uuid": "string",
     "name": "string",
     "description": "string",
     "shortDescription": null,

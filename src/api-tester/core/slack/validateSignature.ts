@@ -2,18 +2,11 @@
 
 import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 
-/**
- * Validates a Slack request by verifying its signature.
- *
- * @param req     The incoming Request (muss x-slack-* Header enthalten).
- * @param rawBody The rohe Request-Body als String.
- * @returns       true, wenn Signatur gültig oder SKIP_VALIDATE_SIGNATURE="true".
- */
 export async function validateSignature(
   req: Request,
   rawBody: string,
 ): Promise<boolean> {
-  // ✅ Dev-Bypass: Umgehung per ENV-Var für lokale Tests
+  // 0) Bypass im DEV
   if (Deno.env.get("SKIP_VALIDATE_SIGNATURE") === "true") {
     console.warn(
       "⚠️ SKIP_VALIDATE_SIGNATURE=true → Signature-Validation übersprungen",
@@ -27,44 +20,44 @@ export async function validateSignature(
     console.error("🚨 Missing Slack signature headers");
     return false;
   }
-
-  // Replay-Angriffe verhindern (±5 Min)
+  // ... der Rest bleibt unverändert
+  const fiveMin = 60 * 5;
   const now = Math.floor(Date.now() / 1000);
-  const age = Math.abs(now - Number(timestamp));
-  if (age > 60 * 5) {
-    console.error("🚨 Slack request timestamp zu alt:", age, "Sekunden");
+  if (Math.abs(now - Number(timestamp)) > fiveMin) {
+    console.error("🚨 Slack request timestamp too old");
     return false;
   }
-
   const encoder = new TextEncoder();
   const baseString = `v0:${timestamp}:${rawBody}`;
   const data = encoder.encode(baseString);
-
-  // Versuche jeden Signing-Secret
   const workspaces = getSlackWorkspaces();
   for (const { signingSecret } of workspaces) {
-    const keyBuf = encoder.encode(signingSecret);
     const key = await crypto.subtle.importKey(
       "raw",
-      keyBuf,
+      encoder.encode(signingSecret),
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["sign"],
     );
-    const sigBuf = await crypto.subtle.sign("HMAC", key, data);
-    const hashHex = Array.from(new Uint8Array(sigBuf))
+    const signatureBuffer = await crypto.subtle.sign("HMAC", key, data);
+    const hashHex = Array.from(new Uint8Array(signatureBuffer))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
     const mySig = `v0=${hashHex}`;
-
-    // Konstantzeit-Vergleich
-    const a = encoder.encode(mySig);
-    const b = encoder.encode(slackSig);
-    if (a.length === b.length && a.every((v, i) => v === b[i])) {
-      return true;
+    // constant-time compare …
+    const myBuf = encoder.encode(mySig);
+    const slackBuf = encoder.encode(slackSig);
+    if (myBuf.length === slackBuf.length) {
+      let equal = true;
+      for (let i = 0; i < myBuf.length; i++) {
+        if (myBuf[i] !== slackBuf[i]) {
+          equal = false;
+          break;
+        }
+      }
+      if (equal) return true;
     }
   }
-
-  console.error("🚨 Keine gültige Slack-Signatur gefunden");
+  console.error("🚨 No valid Slack signature found");
   return false;
 }

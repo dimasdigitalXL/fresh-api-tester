@@ -3,10 +3,20 @@
 import { Handlers } from "$fresh/server.ts";
 import { validateSignature } from "../../src/api-tester/core/slack/validateSignature.ts";
 import { openPinModal } from "../../src/api-tester/core/slack/openPinModal.ts";
-import { handlePinSubmission } from "../../src/api-tester/core/slack/handlePinSubmission.ts";
-
-// NEU:
+import {
+  handlePinSubmission,
+  type SlackSubmissionPayload,
+} from "../../src/api-tester/core/slack/handlePinSubmission.ts";
 import { slackDebugEvents } from "../../src/api-tester/core/slack/debugStore.ts";
+
+/** Für Button-Klick (block_actions) */
+interface BlockActionPayload {
+  type: string;
+  trigger_id: string;
+  actions: Array<{ value: string }>;
+  message: { ts: string };
+  channel: { id: string };
+}
 
 export const handler: Handlers = {
   GET() {
@@ -15,10 +25,10 @@ export const handler: Handlers = {
 
   async POST(req) {
     const rawBody = await req.text();
+    const contentType = req.headers.get("content-type") ?? "";
 
-    // Debug: rohes Event festhalten
+    // ─── Debug: rohes Event speichern ───────────────────
     try {
-      const contentType = req.headers.get("content-type") ?? "";
       let parsed: unknown = rawBody;
       if (contentType.includes("application/json")) {
         parsed = JSON.parse(rawBody);
@@ -26,64 +36,87 @@ export const handler: Handlers = {
         const params = new URLSearchParams(rawBody);
         parsed = JSON.parse(params.get("payload")!);
       }
+      let evtType = "unknown";
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        "type" in parsed &&
+        typeof (parsed as { type: unknown }).type === "string"
+      ) {
+        evtType = (parsed as { type: string }).type;
+      }
       slackDebugEvents.unshift({
         time: Date.now(),
-        type: req.headers.get("x-slack-event-type") ?? "block_actions",
+        type: evtType,
         rawPayload: parsed,
       });
-      // Begrenze auf die letzten 20 Einträge
       if (slackDebugEvents.length > 20) slackDebugEvents.pop();
-    } catch (_) {
-      // swallow
+    } catch {
+      // parse errors ignorieren
     }
 
-    // Signatur-Check / URL-Verification / Interactivity-Flow …
+    // ─── 1) Signatur prüfen ─────────────────────────────
     if (!(await validateSignature(req, rawBody))) {
       return new Response("Invalid signature", { status: 401 });
     }
 
-    const contentType = req.headers.get("content-type") ?? "";
-
-    // URL-Verification
+    // ─── 2) application/json: URL-Verification & Modal-Submit ─
     if (contentType.includes("application/json")) {
-      const body = JSON.parse(rawBody);
-      if (body.type === "url_verification") {
-        return new Response(body.challenge, {
-          status: 200,
-          headers: { "Content-Type": "text/plain" },
-        });
+      const parsed = JSON.parse(rawBody) as unknown;
+
+      // URL-Verification
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        (parsed as { type: unknown }).type === "url_verification"
+      ) {
+        const challenge = (parsed as { challenge: unknown }).challenge;
+        if (typeof challenge === "string") {
+          return new Response(challenge, {
+            status: 200,
+            headers: { "Content-Type": "text/plain" },
+          });
+        }
       }
+
+      // Modal-Submit (PIN-Dialog)
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        (parsed as { type: unknown }).type === "view_submission"
+      ) {
+        // Ack 200
+        const resp = new Response("", { status: 200 });
+        // Cast unknown → SlackSubmissionPayload (erlaubt)
+        void handlePinSubmission(parsed as SlackSubmissionPayload);
+        return resp;
+      }
+
+      // andere JSON-Events acken
       return new Response("", { status: 200 });
     }
 
-    // Interaktive Payloads
+    // ─── 3) application/x-www-form-urlencoded: Block-Actions ────
     if (contentType.includes("application/x-www-form-urlencoded")) {
       const params = new URLSearchParams(rawBody);
-      const payload = JSON.parse(params.get("payload")!);
+      const payload = JSON.parse(params.get("payload")!) as BlockActionPayload;
 
       if (payload.type === "block_actions") {
-        const ack = new Response("", { status: 200 });
+        const resp = new Response("", { status: 200 });
         void openPinModal({
           triggerId: payload.trigger_id,
           endpoint: payload.actions[0].value,
           messageTs: payload.message.ts,
           channelId: payload.channel.id,
         });
-        return ack;
+        return resp;
       }
 
-      if (
-        payload.type === "view_submission" &&
-        payload.view.callback_id === "pin_submission"
-      ) {
-        const ack = new Response("", { status: 200 });
-        void handlePinSubmission(payload);
-        return ack;
-      }
-
+      // andere Form-Events acken
       return new Response("", { status: 200 });
     }
 
+    // ─── 4) Fallback ──────────────────────────────────────
     return new Response("", { status: 200 });
   },
 };
