@@ -22,11 +22,7 @@ export interface TestResult {
   errorDetails?: string;
   missingFields: string[];
   extraFields: string[];
-  typeMismatches: Array<{
-    path: string;
-    expected: string;
-    actual: string;
-  }>;
+  typeMismatches: Array<{ path: string; expected: string; actual: string }>;
   updatedStructure: string | null;
 }
 
@@ -46,7 +42,7 @@ export async function testEndpoint(
   config?: { endpoints: Endpoint[] },
 ): Promise<TestResult> {
   try {
-    // 1) Platzhalter ersetzen
+    // 1) URL-Platzhalter
     let url = endpoint.url.replace(
       "${XENTRAL_ID}",
       Deno.env.get("XENTRAL_ID") ?? "",
@@ -55,45 +51,38 @@ export async function testEndpoint(
       url = url.replace(`{${k}}`, v);
     }
 
-    // 2) Querystring
+    // 2) Query‐String
     const qs = endpoint.query
       ? "?" + new URLSearchParams(endpoint.query).toString()
       : "";
 
-    // 3) Body laden
-    let data: unknown = undefined;
+    // 3) Body
+    let data: unknown;
     if (
-      ["POST", "PUT", "PATCH"].includes(endpoint.method) &&
-      endpoint.bodyFile
+      ["POST", "PUT", "PATCH"].includes(endpoint.method) && endpoint.bodyFile
     ) {
       const bf = resolveProjectPath(endpoint.bodyFile);
-      if (existsSync(bf)) {
-        const raw = await Deno.readTextFile(bf);
-        data = JSON.parse(raw);
-      }
+      if (existsSync(bf)) data = JSON.parse(await Deno.readTextFile(bf));
     }
 
-    // 4) Headers aus config lesen (oder Standard setzen)
-    const headersConfig = endpoint.headers ?? {};
+    // 4) Header + Auth
+    const baseHeaders = endpoint.headers ?? {};
     const headers: Record<string, string> = {
-      ...headersConfig,
-      // Immer sicherstellen, dass Authorization aus ENV kommt
-      Authorization: headersConfig.Authorization?.includes("${BEARER_TOKEN}")
-        ? headersConfig.Authorization.replace(
+      ...baseHeaders,
+      Authorization: baseHeaders.Authorization?.includes("${BEARER_TOKEN}")
+        ? baseHeaders.Authorization.replace(
           "${BEARER_TOKEN}",
           Deno.env.get("BEARER_TOKEN") ?? "",
         )
-        : headersConfig.Authorization ??
+        : baseHeaders.Authorization ??
           `Bearer ${Deno.env.get("BEARER_TOKEN")}`,
     };
 
-    // 4.1) Debug-Log: URL + Header
+    // 5) Request log + execute
     const fullUrl = `${url}${qs}`;
     console.log("▶️ Request für", endpoint.name);
     console.log("   URL:   ", fullUrl);
     console.log("   Header:", JSON.stringify(headers));
-
-    // 5) Request ausführen
     const resp = await axios.request({
       url: fullUrl,
       method: endpoint.method,
@@ -102,10 +91,10 @@ export async function testEndpoint(
       validateStatus: () => true,
     });
 
-    // 5.1) 2xx als Erfolg, alles andere als kritischen Fehler behandeln
+    // 6) HTTP‐Error
     if (resp.status < 200 || resp.status >= 300) {
-      const msg = `HTTP ${resp.status} (${resp.statusText || "Not OK"})`;
-      console.error(`❌ API-Fehler für ${endpoint.name}: ${msg}`);
+      const msg = `HTTP ${resp.status} (${resp.statusText || "Error"})`;
+      console.error(`❌ API-Fehler für ${endpoint.name}:`, msg);
       return {
         endpointName: endpoint.name,
         method: endpoint.method,
@@ -120,11 +109,9 @@ export async function testEndpoint(
         updatedStructure: null,
       };
     }
-
     console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
-    //console.log("API Antwort:", JSON.stringify(resp.data, null, 2));
 
-    // 6) Wenn kein expectedStructure → Erfolg
+    // 7) Kein Schema → sofort OK
     if (!endpoint.expectedStructure) {
       return {
         endpointName: endpoint.name,
@@ -140,8 +127,9 @@ export async function testEndpoint(
       };
     }
 
-    // 7) Erwartete Struktur laden
-    const expectedPath = resolveProjectPath(endpoint.expectedStructure);
+    // 8) Erwartete Struktur laden (jetzt nur noch "expected/…")
+    const parts = endpoint.expectedStructure.split("/");
+    const expectedPath = resolveProjectPath(...parts);
     if (!existsSync(expectedPath)) {
       const msg = `Erwartete Datei nicht gefunden: ${expectedPath}`;
       console.warn(`⚠️ ${msg}`);
@@ -159,17 +147,10 @@ export async function testEndpoint(
         updatedStructure: null,
       };
     }
-    const expectedText = await Deno.readTextFile(expectedPath);
-    const expected = JSON.parse(expectedText);
+    const expected = JSON.parse(await Deno.readTextFile(expectedPath));
 
-    //console.log(  `🔍 Geladene erwartete Struktur (${endpoint.expectedStructure}):`,);
-    //console.log(JSON.stringify(expected, null, 2));
-
-    // 8) Vergleichen
+    // 9) Schema‐Vergleich
     const transformed = transformValues(resp.data ?? {});
-    //console.log("🔍 Transformierte API-Antwort:");
-    //console.log(JSON.stringify(transformed, null, 2));
-
     const { missingFields, extraFields, typeMismatches } = compareStructures(
       expected,
       transformed,
@@ -178,34 +159,32 @@ export async function testEndpoint(
       extraFields.length > 0 ||
       typeMismatches.length > 0;
 
-    // 9) errorDetails generieren
+    // 10) errorDetails
     let errorDetails: string | undefined;
     if (hasDiff) {
       const parts: string[] = [];
-      if (missingFields.length > 0) {
+      if (missingFields.length) {
         parts.push(`Fehlende Felder: ${missingFields.join(", ")}`);
       }
-      if (extraFields.length > 0) {
+      if (extraFields.length) {
         parts.push(`Unerwartete Felder: ${extraFields.join(", ")}`);
       }
-      if (typeMismatches.length > 0) {
+      if (typeMismatches.length) {
         parts.push(
           `Typabweichungen: ${
-            typeMismatches
-              .map((t) =>
-                `${t.path} (erwartet ${t.expected}, actual ${t.actual})`
-              )
-              .join("; ")
+            typeMismatches.map((t) =>
+              `${t.path} (erw. ${t.expected}, ist ${t.actual})`
+            ).join("; ")
           }`,
         );
       }
       errorDetails = parts.join(" | ");
-      console.warn(`⚠️ Abweichungen bei ${endpoint.name}: ${errorDetails}`);
+      console.warn(`⚠️ Abweichungen bei ${endpoint.name}:`, errorDetails);
     } else {
       console.log(`✅ Struktur stimmt für ${endpoint.name}`);
     }
 
-    // 10) Neue Struktur speichern
+    // 11) Bei Diff → neue Datei in src/api-tester/expected
     let updatedStructure: string | null = null;
     if (hasDiff) {
       const baseName = endpoint.name.replace(/\s+/g, "_");
@@ -215,14 +194,14 @@ export async function testEndpoint(
       console.log(`📄 Saved updated structure: ${nextPath}`);
       updatedStructure = basename(nextPath);
 
-      // 11) Genehmigte Struktur in config übernehmen
-      if (config && endpoint.expectedStructure) {
+      // und falls approved → config updaten
+      if (config) {
         const approvalsPath = resolveProjectPath("pending-approvals.json");
         if (existsSync(approvalsPath)) {
-          const raw = await Deno.readTextFile(approvalsPath);
-          const approvals = JSON.parse(raw) as Record<string, string>;
-          const key = baseName;
-          if (approvals[key] === "approved") {
+          const approvals = JSON.parse(
+            await Deno.readTextFile(approvalsPath),
+          ) as Record<string, string>;
+          if (approvals[baseName] === "approved") {
             const ep = config.endpoints.find((e) => e.name === endpoint.name);
             if (ep) {
               ep.expectedStructure = join("expected", updatedStructure);
@@ -232,7 +211,7 @@ export async function testEndpoint(
               );
               console.log(`🛠️ config.json updated: ${ep.expectedStructure}`);
             }
-            approvals[key] = "waiting";
+            approvals[baseName] = "waiting";
             await Deno.writeTextFile(
               approvalsPath,
               JSON.stringify(approvals, null, 2),
@@ -242,7 +221,7 @@ export async function testEndpoint(
       }
     }
 
-    // 12) TestResult zurückgeben
+    // 12) Ergebnis
     return {
       endpointName: endpoint.name,
       method: endpoint.method,
@@ -258,7 +237,7 @@ export async function testEndpoint(
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`❌ Error in ${endpoint.name}:`, msg);
+    console.error(`❌ Exception in ${endpoint.name}:`, msg);
     return {
       endpointName: endpoint.name,
       method: endpoint.method,

@@ -1,3 +1,5 @@
+// src/api-tester/core/slack/slackReporter/sendSlackReport.ts
+
 import axios from "https://esm.sh/axios@1.4.0";
 import { getSlackWorkspaces } from "../slackWorkspaces.ts";
 import { renderHeaderBlock } from "./renderHeaderBlock.ts";
@@ -15,6 +17,7 @@ export async function sendSlackReport(
   options: { dryRun?: boolean } = {},
 ): Promise<void> {
   const workspaces = getSlackWorkspaces();
+  console.log("🔧 Slack Workspaces:", workspaces);
 
   // 1) Logge die Statistik
   const total = testResults.length;
@@ -28,34 +31,32 @@ export async function sendSlackReport(
   console.log(`⚠️ Warnungen: ${warnings}`);
   console.log(`🔴 Kritisch: ${criticals}`);
 
-  // 2) Wenn zu viele kritische Fehler sind, logge sie
+  // 2) Wenn kritische Fehler, log Details
   if (criticals > 0) {
     console.log("⚠️ Kritische Fehler bei den folgenden Endpunkten:");
-    testResults.filter((r) => r.isCritical).forEach((r) => {
-      console.log(`- ${r.endpointName} (${r.method})`);
-      console.log(
-        `  Fehlerdetails: ${r.errorDetails ?? "Keine weiteren Details"}`,
-      );
-    });
+    testResults
+      .filter((r) => r.isCritical)
+      .forEach((r) => {
+        console.log(`- ${r.endpointName} (${r.method})`);
+        console.log(
+          `  Fehlerdetails: ${r.errorDetails ?? "Keine weiteren Details"}`,
+        );
+      });
   }
 
-  // 3) Weiter mit dem Block-Kit
+  // 3) Baue Block-Kit
   const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
   const versions = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
     : [];
-
-  // Hier wird `renderIssueBlocks` mit allen Fehlern und fehlenden Feldern aufgerufen
   const issues = renderIssueBlocks(
     testResults.filter((r) => !r.success || r.isCritical),
   );
-
   const stats = renderStatsBlock(total, success, warnings, criticals);
 
-  // 4) Blöcke zusammenstellen
   const blocks = [...header, ...versions, ...issues, ...stats];
 
-  // 5) Zu viele Blöcke? → kompakte Fallback-Nachricht
+  // 4) Fallback, wenn zu viele Blöcke
   if (blocks.length > 50) {
     const fallback = [
       `🔍 *API Testbericht*`,
@@ -81,7 +82,7 @@ export async function sendSlackReport(
     return;
   }
 
-  // 6) Poste die Block-Kit-Nachricht
+  // 5) Sende reguläre Block-Kit-Nachricht
   for (const { token, channel } of workspaces) {
     if (options.dryRun) continue;
     await axios.post(
