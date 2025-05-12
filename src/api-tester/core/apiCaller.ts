@@ -122,7 +122,7 @@ export async function testEndpoint(
     }
 
     console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
-    console.log("API Antwort:", JSON.stringify(resp.data, null, 2));
+    //console.log("API Antwort:", JSON.stringify(resp.data, null, 2));
 
     // 6) Wenn kein expectedStructure → Erfolg
     if (!endpoint.expectedStructure) {
@@ -162,15 +162,13 @@ export async function testEndpoint(
     const expectedText = await Deno.readTextFile(expectedPath);
     const expected = JSON.parse(expectedText);
 
-    console.log(
-      `🔍 Geladene erwartete Struktur (${endpoint.expectedStructure}):`,
-    );
-    console.log(JSON.stringify(expected, null, 2));
+    //console.log(  `🔍 Geladene erwartete Struktur (${endpoint.expectedStructure}):`,);
+    //console.log(JSON.stringify(expected, null, 2));
 
     // 8) Vergleichen
     const transformed = transformValues(resp.data ?? {});
-    console.log("🔍 Transformierte API-Antwort:");
-    console.log(JSON.stringify(transformed, null, 2));
+    //console.log("🔍 Transformierte API-Antwort:");
+    //console.log(JSON.stringify(transformed, null, 2));
 
     const { missingFields, extraFields, typeMismatches } = compareStructures(
       expected,
