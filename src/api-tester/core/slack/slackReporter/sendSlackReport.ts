@@ -1,5 +1,3 @@
-// src/api-tester/core/slack/slackReporter/sendSlackReport.ts
-
 import axios from "https://esm.sh/axios@1.4.0";
 import { getSlackWorkspaces } from "../slackWorkspaces.ts";
 import { renderHeaderBlock } from "./renderHeaderBlock.ts";
@@ -19,7 +17,7 @@ export async function sendSlackReport(
   const workspaces = getSlackWorkspaces();
   console.log("🔧 Slack Workspaces:", workspaces);
 
-  // 1) Logge die Statistik
+  // 1) Statistik
   const total = testResults.length;
   const success = testResults.filter((r) => r.success).length;
   const warnings =
@@ -31,20 +29,17 @@ export async function sendSlackReport(
   console.log(`⚠️ Warnungen: ${warnings}`);
   console.log(`🔴 Kritisch: ${criticals}`);
 
-  // 2) Wenn kritische Fehler, log Details
   if (criticals > 0) {
     console.log("⚠️ Kritische Fehler bei den folgenden Endpunkten:");
-    testResults
-      .filter((r) => r.isCritical)
-      .forEach((r) => {
-        console.log(`- ${r.endpointName} (${r.method})`);
-        console.log(
-          `  Fehlerdetails: ${r.errorDetails ?? "Keine weiteren Details"}`,
-        );
-      });
+    testResults.filter((r) => r.isCritical).forEach((r) => {
+      console.log(`- ${r.endpointName} (${r.method})`);
+      console.log(
+        `  Fehlerdetails: ${r.errorDetails ?? "Keine weiteren Details"}`,
+      );
+    });
   }
 
-  // 3) Baue Block-Kit
+  // 2) Bausteine bauen
   const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
   const versions = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
@@ -54,21 +49,25 @@ export async function sendSlackReport(
   );
   const stats = renderStatsBlock(total, success, warnings, criticals);
 
-  const blocks = [...header, ...versions, ...issues, ...stats];
+  // 3) Vollständige Blocks
+  const fullBlocks = [...header, ...versions, ...issues, ...stats];
 
-  // 4) Fallback, wenn zu viele Blöcke
-  if (blocks.length > 50) {
-    const fallback = [
-      `🔍 *API Testbericht*`,
-      `⚠️ *${warnings + criticals} Abweichungen*`,
-      `📊 Gesamt: ${total}, ✔️ ${success}, ⚠️ ${warnings}, 🔴 ${criticals}`,
-    ].join("\n");
+  // 4) Fallback-Logik: wenn >50 Blocks, statt Plain-Text nur kompakt Header+Issues+Stats senden
+  if (fullBlocks.length > 50) {
+    console.warn(
+      `⚠️ Blocks (${fullBlocks.length}) > 50 → sende gekürzte Nachricht mit Buttons`,
+    );
+    const truncatedBlocks = [...header, ...issues, ...stats];
 
     for (const { token, channel } of workspaces) {
       if (options.dryRun) continue;
       await axios.post(
         "https://slack.com/api/chat.postMessage",
-        { channel, text: fallback },
+        {
+          channel,
+          text: "API Testbericht (gekürzt)", // Fallback-Text
+          blocks: truncatedBlocks,
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -78,11 +77,11 @@ export async function sendSlackReport(
       );
     }
 
-    console.log("📩 Fallback-Slack-Nachricht gesendet.");
+    console.log("📩 Gekürzte Slack-Nachricht gesendet.");
     return;
   }
 
-  // 5) Sende reguläre Block-Kit-Nachricht
+  // 5) Sind fewer als 50, sende komplette Nachricht
   for (const { token, channel } of workspaces) {
     if (options.dryRun) continue;
     await axios.post(
@@ -90,7 +89,7 @@ export async function sendSlackReport(
       {
         channel,
         text: "API Testbericht",
-        blocks,
+        blocks: fullBlocks,
       },
       {
         headers: {

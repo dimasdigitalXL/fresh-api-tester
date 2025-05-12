@@ -113,7 +113,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Customer_updated_v2.json",
+      "expectedStructure": "expected/Get_View_Customer_updated_v1.json",
       "versionChanged": true
     },
     {
