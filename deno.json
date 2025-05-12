@@ -4,6 +4,12 @@
     "env": true,
     "net": true
   },
+  "kv-namespaces": [
+    {
+      "binding": "KV",
+      "id": "apiTester"
+    }
+  ],
   "tasks": {
     "check": "deno fmt --check && deno lint && deno check **/*.ts && deno check **/*.tsx",
     "cli": "echo \"import '$fresh/src/dev/cli.ts'\" | deno run --unstable -A -",
