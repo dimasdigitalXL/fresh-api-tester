@@ -9,6 +9,7 @@ import { basename, join } from "https://deno.land/std@0.216.0/path/mod.ts";
 import { getNextUpdatedPath, transformValues } from "./structureAnalyzer.ts";
 import { compareStructures } from "./compareStructures.ts";
 import { resolveProjectPath } from "./utils.ts";
+import { kvInstance } from "./kv.ts";
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -190,10 +191,26 @@ export async function testEndpoint(
     if (hasDiff) {
       const baseName = endpoint.name.replace(/\s+/g, "_");
       const nextPath = getNextUpdatedPath(baseName);
-      console.log("📄 Neue Struktur wird gespeichert unter:", nextPath); // Debugging log
-      ensureFileSync(nextPath);
-      await Deno.writeTextFile(nextPath, JSON.stringify(transformed, null, 2));
-      console.log(`📄 Saved updated structure: ${nextPath}`);
+      console.log(
+        "📄 (lokal) neue Struktur soll gespeichert werden unter:",
+        nextPath,
+      );
+      try {
+        ensureFileSync(nextPath);
+        await Deno.writeTextFile(
+          nextPath,
+          JSON.stringify(transformed, null, 2),
+        );
+        console.log(`📄 Saved updated structure: ${nextPath}`);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn(
+          `⚠️ Konnte Struktur nicht lokal schreiben (readonly FS), speichere in KV: ${msg}`,
+        );
+        // Fallback in KV
+        await kvInstance.set(["updates", baseName], transformed);
+        console.log(`✅ Updated structure for '${baseName}' in KV gespeichert`);
+      }
       updatedStructure = basename(nextPath);
 
       // und falls approved → config updaten
