@@ -43,7 +43,7 @@ export async function testEndpoint(
   config?: { endpoints: Endpoint[] },
 ): Promise<TestResult> {
   try {
-    // 1) URL-Platzhalter
+    // 1) URL‐Platzhalter
     let url = endpoint.url.replace(
       "${XENTRAL_ID}",
       Deno.env.get("XENTRAL_ID") ?? "",
@@ -60,10 +60,13 @@ export async function testEndpoint(
     // 3) Body
     let data: unknown;
     if (
-      ["POST", "PUT", "PATCH"].includes(endpoint.method) && endpoint.bodyFile
+      ["POST", "PUT", "PATCH"].includes(endpoint.method) &&
+      endpoint.bodyFile
     ) {
       const bf = resolveProjectPath(endpoint.bodyFile);
-      if (existsSync(bf)) data = JSON.parse(await Deno.readTextFile(bf));
+      if (existsSync(bf)) {
+        data = JSON.parse(await Deno.readTextFile(bf));
+      }
     }
 
     // 4) Header + Auth
@@ -95,7 +98,7 @@ export async function testEndpoint(
     // 6) HTTP‐Error
     if (resp.status < 200 || resp.status >= 300) {
       const msg = `HTTP ${resp.status} (${resp.statusText || "Error"})`;
-      console.error(`❌ API-Fehler für ${endpoint.name}:`, msg);
+      console.error(`❌ API‐Fehler für ${endpoint.name}:`, msg);
       return {
         endpointName: endpoint.name,
         method: endpoint.method,
@@ -128,10 +131,10 @@ export async function testEndpoint(
       };
     }
 
-    // 8) Erwartete Struktur laden (jetzt nur noch "expected/…")
+    // 8) Erwartete Struktur laden
     const parts = endpoint.expectedStructure.split("/");
     const expectedPath = resolveProjectPath(...parts);
-    console.log("🔍 Erwartete Struktur wird geladen von:", expectedPath); // Debugging log
+    console.log("🔍 Erwartete Struktur wird geladen von:", expectedPath);
     if (!existsSync(expectedPath)) {
       const msg = `Erwartete Datei nicht gefunden: ${expectedPath}`;
       console.warn(`⚠️ ${msg}`);
@@ -186,7 +189,7 @@ export async function testEndpoint(
       console.log(`✅ Struktur stimmt für ${endpoint.name}`);
     }
 
-    // 11) Bei Diff → neue Datei in src/api-tester/expected
+    // 11) Bei Diff → versuchen lokal zu schreiben, sonst in KV
     let updatedStructure: string | null = null;
     if (hasDiff) {
       const baseName = endpoint.name.replace(/\s+/g, "_");
@@ -195,6 +198,7 @@ export async function testEndpoint(
         "📄 (lokal) neue Struktur soll gespeichert werden unter:",
         nextPath,
       );
+
       try {
         ensureFileSync(nextPath);
         await Deno.writeTextFile(
@@ -202,16 +206,16 @@ export async function testEndpoint(
           JSON.stringify(transformed, null, 2),
         );
         console.log(`📄 Saved updated structure: ${nextPath}`);
+        updatedStructure = basename(nextPath);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.warn(
           `⚠️ Konnte Struktur nicht lokal schreiben (readonly FS), speichere in KV: ${msg}`,
         );
-        // Fallback in KV
         await kvInstance.set(["updates", baseName], transformed);
         console.log(`✅ Updated structure for '${baseName}' in KV gespeichert`);
+        updatedStructure = baseName;
       }
-      updatedStructure = basename(nextPath);
 
       // und falls approved → config updaten
       if (config) {
@@ -240,7 +244,7 @@ export async function testEndpoint(
       }
     }
 
-    // 12) Ergebnis
+    // 12) Ergebnis zurückgeben
     return {
       endpointName: endpoint.name,
       method: endpoint.method,
