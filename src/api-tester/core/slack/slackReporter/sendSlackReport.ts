@@ -9,55 +9,57 @@ import { renderIssueBlocks } from "./renderIssueBlocks.ts";
 import { renderStatsBlock } from "./renderStatsBlock.ts";
 import type { TestResult } from "../../apiCaller.ts";
 
+/**
+ * Sendet den API-Testbericht an alle konfigurierten Slack-Workspaces.
+ * Schreibt außerdem die rohen Issue-Blocks und initialen Approval-Status ins KV.
+ */
 export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: Array<{ name: string; url: string }> = [],
   options: { dryRun?: boolean } = {},
 ): Promise<void> {
+  // 1) Workspaces auslesen
   const workspaces = getSlackWorkspaces();
   console.log("🔧 Slack Workspaces:", workspaces);
 
-  // 1) Statistik berechnen
+  // 2) Statistik berechnen
   const total = testResults.length;
   const success = testResults.filter((r) => r.success).length;
   const warnings =
     testResults.filter((r) => !r.success && !r.isCritical).length;
   const criticals = testResults.filter((r) => r.isCritical).length;
-
   console.log(
     `📊 Gesamt: ${total}, ✅ ${success}, ⚠️ ${warnings}, 🔴 ${criticals}`,
   );
 
-  // 2) Blocks bauen
+  // 3) Blocks zusammenbauen
   const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
   const versions = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
     : [];
   const failing = testResults.filter((r) => !r.success || r.isCritical);
 
-  // Für jeden Fehler-Endpunkt seine eigenen Blocks holen und dabei die block_id einzigartig machen
+  // Jedes Issue-Block-Array so anpassen, dass action-block_ids eindeutig sind
   const issues = failing.flatMap((result) => {
-    // key z.B. "Get_View_Product"
     const key = result.endpointName.replace(/\s+/g, "_");
-    // renderIssueBlocks liefert ein Array von Blocks für genau EIN result
     const singleBlocks = renderIssueBlocks([result]);
     return singleBlocks.map((block) => {
-      // finde das Actions-Element und modifiziere seine block_id
       if (block.type === "actions" && block.block_id === "decision_buttons") {
-        return {
-          ...block,
-          block_id: `decision_buttons_${key}`, // jetzt eindeutig
-        };
+        return { ...block, block_id: `decision_buttons_${key}` };
       }
       return block;
     });
   });
 
   const stats = renderStatsBlock(total, success, warnings, criticals);
-  // komplettiere die Message
   const blocks = [...header, ...versions, ...issues, ...stats];
 
-  // 3) Raw-Blocks & Approvals initial ins KV
+  // 3.1) Debug: vor dem Senden ansehen
+  console.log("▶️ Blocks, die wir an Slack schicken wollen:");
+  console.log(JSON.stringify(blocks, null, 2));
+
+  // ────────────────────────────────────────────────────────────
+  // 4) Rohe Issue-Blocks & initialen Status ins KV schreiben
   {
     const kv = await kvInstance;
     const res = await kv.get<Record<string, string>>(["approvals"]);
@@ -71,8 +73,9 @@ export async function sendSlackReport(
     await kv.set(["approvals"], approvals);
     console.log("✅ KV: rawBlocks & approvals initial gespeichert");
   }
+  // ────────────────────────────────────────────────────────────
 
-  // 4) Fallback, falls >50 Blocks
+  // 5) Fallback falls zu viele Blocks (>50)
   if (blocks.length > 50) {
     const fallbackText = [
       `🔍 *API Testbericht*`,
@@ -96,7 +99,7 @@ export async function sendSlackReport(
     return;
   }
 
-  // 5) Block‐Kit Nachricht senden
+  // 6) Endgültige Nachricht mit Block-Kit senden
   for (const { token, channel } of workspaces) {
     if (options.dryRun) continue;
     const resp = await axios.post(
