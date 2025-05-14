@@ -1,3 +1,4 @@
+import "https://deno.land/std@0.216.0/dotenv/load.ts";
 import { loadConfig } from "./src/api-tester/core/configLoader.ts";
 import {
   runSingleEndpoint,

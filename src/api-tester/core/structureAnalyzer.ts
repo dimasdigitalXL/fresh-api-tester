@@ -28,13 +28,16 @@ export function transformValues(value: unknown): unknown {
  * src/api-tester/expected/Get_View_Customer_updated_v3.json
  */
 export function getNextUpdatedPath(baseName: string): string {
-  // Wir landen hier im Ordner <root>/src/api-tester/expected
-  const dir = resolveProjectPath("api-tester", "expected");
+  // Hardcodierter Pfad für den Ordner "expected"
+  const dir =
+    "/Users/dimaswahyuasmoro/my-deno-project/api-tester-fresh/src/expected";
+
+  // Verzeichnis erstellen, falls nicht vorhanden
   if (!existsSync(dir)) {
     Deno.mkdirSync(dir, { recursive: true });
   }
 
-  // Liste aller vorhandenen _updated*.json
+  // Liste der bestehenden *_updated*.json-Dateien
   const entries = Array.from(Deno.readDirSync(dir))
     .filter((e) => e.isFile)
     .map((e) => e.name);
@@ -52,7 +55,8 @@ export function getNextUpdatedPath(baseName: string): string {
     nextVer === 0 ? "" : `_v${nextVer}`
   }.json`;
 
-  return resolveProjectPath("api-tester", "expected", fileName);
+  // Rückgabe des Hardcodierten Pfades für die Datei
+  return `${dir}/${fileName}`;
 }
 
 /**

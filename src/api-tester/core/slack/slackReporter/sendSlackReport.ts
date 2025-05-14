@@ -1,4 +1,7 @@
+// src/api-tester/core/slack/slackReporter/sendSlackReport.ts
+
 import axios from "https://esm.sh/axios@1.4.0";
+import { kvInstance } from "../../kv.ts";
 import { getSlackWorkspaces } from "../slackWorkspaces.ts";
 import { renderHeaderBlock } from "./renderHeaderBlock.ts";
 import { renderVersionBlocks } from "./renderVersionBlocks.ts";
@@ -6,9 +9,6 @@ import { renderIssueBlocks } from "./renderIssueBlocks.ts";
 import { renderStatsBlock } from "./renderStatsBlock.ts";
 import type { TestResult } from "../../apiCaller.ts";
 
-/**
- * Sendet den API-Testbericht an alle konfigurierten Slack-Workspaces.
- */
 export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: Array<{ name: string; url: string }> = [],
@@ -17,57 +17,73 @@ export async function sendSlackReport(
   const workspaces = getSlackWorkspaces();
   console.log("🔧 Slack Workspaces:", workspaces);
 
-  // 1) Statistik
+  // 1) Statistik berechnen
   const total = testResults.length;
   const success = testResults.filter((r) => r.success).length;
   const warnings =
     testResults.filter((r) => !r.success && !r.isCritical).length;
   const criticals = testResults.filter((r) => r.isCritical).length;
 
-  console.log(`📊 Gesamtstatistik: ${total} API-Aufrufe`);
-  console.log(`✅ Erfolgreich: ${success}`);
-  console.log(`⚠️ Warnungen: ${warnings}`);
-  console.log(`🔴 Kritisch: ${criticals}`);
+  console.log(
+    `📊 Gesamt: ${total}, ✅ ${success}, ⚠️ ${warnings}, 🔴 ${criticals}`,
+  );
 
-  if (criticals > 0) {
-    console.log("⚠️ Kritische Fehler bei den folgenden Endpunkten:");
-    testResults.filter((r) => r.isCritical).forEach((r) => {
-      console.log(`- ${r.endpointName} (${r.method})`);
-      console.log(
-        `  Fehlerdetails: ${r.errorDetails ?? "Keine weiteren Details"}`,
-      );
-    });
-  }
-
-  // 2) Bausteine bauen
+  // 2) Blocks bauen
   const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
   const versions = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
     : [];
-  const issues = renderIssueBlocks(
-    testResults.filter((r) => !r.success || r.isCritical),
-  );
+  const failing = testResults.filter((r) => !r.success || r.isCritical);
+
+  // Für jeden Fehler-Endpunkt seine eigenen Blocks holen und dabei die block_id einzigartig machen
+  const issues = failing.flatMap((result) => {
+    // key z.B. "Get_View_Product"
+    const key = result.endpointName.replace(/\s+/g, "_");
+    // renderIssueBlocks liefert ein Array von Blocks für genau EIN result
+    const singleBlocks = renderIssueBlocks([result]);
+    return singleBlocks.map((block) => {
+      // finde das Actions-Element und modifiziere seine block_id
+      if (block.type === "actions" && block.block_id === "decision_buttons") {
+        return {
+          ...block,
+          block_id: `decision_buttons_${key}`, // jetzt eindeutig
+        };
+      }
+      return block;
+    });
+  });
+
   const stats = renderStatsBlock(total, success, warnings, criticals);
+  // komplettiere die Message
+  const blocks = [...header, ...versions, ...issues, ...stats];
 
-  // 3) Vollständige Blocks
-  const fullBlocks = [...header, ...versions, ...issues, ...stats];
+  // 3) Raw-Blocks & Approvals initial ins KV
+  {
+    const kv = await kvInstance;
+    const res = await kv.get<Record<string, string>>(["approvals"]);
+    const approvals = res.value ?? {};
+    for (const result of failing) {
+      const key = result.endpointName.replace(/\s+/g, "_");
+      const endpointBlocks = renderIssueBlocks([result]);
+      await kv.set(["rawBlocks", key], endpointBlocks);
+      approvals[key] = "pending";
+    }
+    await kv.set(["approvals"], approvals);
+    console.log("✅ KV: rawBlocks & approvals initial gespeichert");
+  }
 
-  // 4) Fallback-Logik: wenn >50 Blocks, statt Plain-Text nur kompakt Header+Issues+Stats senden
-  if (fullBlocks.length > 50) {
-    console.warn(
-      `⚠️ Blocks (${fullBlocks.length}) > 50 → sende gekürzte Nachricht mit Buttons`,
-    );
-    const truncatedBlocks = [...header, ...issues, ...stats];
-
+  // 4) Fallback, falls >50 Blocks
+  if (blocks.length > 50) {
+    const fallbackText = [
+      `🔍 *API Testbericht*`,
+      `⚠️ *${warnings + criticals} Abweichungen*`,
+      `📊 Gesamt: ${total}, ✔️ ${success}, ⚠️ ${warnings}, 🔴 ${criticals}`,
+    ].join("\n");
     for (const { token, channel } of workspaces) {
       if (options.dryRun) continue;
-      await axios.post(
+      const resp = await axios.post(
         "https://slack.com/api/chat.postMessage",
-        {
-          channel,
-          text: "API Testbericht (gekürzt)", // Fallback-Text
-          blocks: truncatedBlocks,
-        },
+        { channel, text: fallbackText },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -75,22 +91,17 @@ export async function sendSlackReport(
           },
         },
       );
+      console.log("▶️ Slack API Fallback response:", resp.data);
     }
-
-    console.log("📩 Gekürzte Slack-Nachricht gesendet.");
     return;
   }
 
-  // 5) Sind fewer als 50, sende komplette Nachricht
+  // 5) Block‐Kit Nachricht senden
   for (const { token, channel } of workspaces) {
     if (options.dryRun) continue;
-    await axios.post(
+    const resp = await axios.post(
       "https://slack.com/api/chat.postMessage",
-      {
-        channel,
-        text: "API Testbericht",
-        blocks: fullBlocks,
-      },
+      { channel, text: "API Testbericht", blocks },
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -98,6 +109,7 @@ export async function sendSlackReport(
         },
       },
     );
+    console.log("▶️ Slack API chat.postMessage response:", resp.data);
   }
 
   console.log("📩 Slack-Testbericht gesendet.");

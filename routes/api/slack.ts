@@ -1,5 +1,6 @@
 // routes/api/slack.ts
 
+import "https://deno.land/std@0.216.0/dotenv/load.ts"; // lädt .env in Deno.env
 import { Handlers } from "$fresh/server.ts";
 import { validateSignature } from "../../src/api-tester/core/slack/validateSignature.ts";
 import { openPinModal } from "../../src/api-tester/core/slack/openPinModal.ts";
@@ -9,7 +10,8 @@ import {
 } from "../../src/api-tester/core/slack/handlePinSubmission.ts";
 import { slackDebugEvents } from "../../src/api-tester/core/slack/debugStore.ts";
 
-/** Für Button-Klick (block_actions) */
+const SKIP_VERIFY = Deno.env.get("SKIP_SLACK_VERIFY") === "true";
+
 interface BlockActionPayload {
   type: string;
   trigger_id: string;
@@ -55,53 +57,58 @@ export const handler: Handlers = {
       // parse errors ignorieren
     }
 
-    // ─── 1) Signatur prüfen ─────────────────────────────
-    if (!(await validateSignature(req, rawBody))) {
-      return new Response("Invalid signature", { status: 401 });
+    // ─── 1) Signatur prüfen (überspringen, wenn SKIP_VERIFY) ────
+    if (!SKIP_VERIFY) {
+      const sig = req.headers.get("x-slack-signature");
+      const ts = req.headers.get("x-slack-request-timestamp");
+      if (!sig || !ts || !(await validateSignature(req, rawBody))) {
+        console.warn("🚨 Slack-Signatur fehlt oder ungültig");
+        return new Response("Invalid signature", { status: 401 });
+      }
     }
 
-    // ─── 2) application/json: URL-Verification & Modal-Submit ─
+    // ─── 2) application/json: URL-Verification & Modal-Submit ───
     if (contentType.includes("application/json")) {
-      const parsed = JSON.parse(rawBody) as unknown;
-
-      // URL-Verification
-      if (
-        typeof parsed === "object" &&
-        parsed !== null &&
-        (parsed as { type: unknown }).type === "url_verification"
-      ) {
-        const challenge = (parsed as { challenge: unknown }).challenge;
-        if (typeof challenge === "string") {
-          return new Response(challenge, {
+      const parsedUnknown = JSON.parse(rawBody) as unknown;
+      if (typeof parsedUnknown === "object" && parsedUnknown !== null) {
+        const parsedObj = parsedUnknown as {
+          type?: unknown;
+          challenge?: unknown;
+          view?: unknown;
+        };
+        // URL-Verification
+        if (
+          parsedObj.type === "url_verification" &&
+          typeof parsedObj.challenge === "string"
+        ) {
+          return new Response(parsedObj.challenge, {
             status: 200,
             headers: { "Content-Type": "text/plain" },
           });
         }
+        // Modal-Submit (PIN-Dialog)
+        if (
+          parsedObj.type === "view_submission" &&
+          typeof parsedObj.view === "object"
+        ) {
+          const resp = new Response("", { status: 200 });
+          void handlePinSubmission(parsedUnknown as SlackSubmissionPayload);
+          return resp;
+        }
       }
-
-      // Modal-Submit (PIN-Dialog)
-      if (
-        typeof parsed === "object" &&
-        parsed !== null &&
-        (parsed as { type: unknown }).type === "view_submission"
-      ) {
-        // Ack 200
-        const resp = new Response("", { status: 200 });
-        // Cast unknown → SlackSubmissionPayload (erlaubt)
-        void handlePinSubmission(parsed as SlackSubmissionPayload);
-        return resp;
-      }
-
-      // andere JSON-Events acken
       return new Response("", { status: 200 });
     }
 
-    // ─── 3) application/x-www-form-urlencoded: Block-Actions ────
+    // ─── 3) application/x-www-form-urlencoded: Block-Actions ──────
     if (contentType.includes("application/x-www-form-urlencoded")) {
       const params = new URLSearchParams(rawBody);
-      const payload = JSON.parse(params.get("payload")!) as BlockActionPayload;
-
-      if (payload.type === "block_actions") {
+      const payloadUnknown = JSON.parse(params.get("payload")!);
+      if (
+        typeof payloadUnknown === "object" &&
+        payloadUnknown !== null &&
+        (payloadUnknown as { type?: unknown }).type === "block_actions"
+      ) {
+        const payload = payloadUnknown as BlockActionPayload;
         const resp = new Response("", { status: 200 });
         void openPinModal({
           triggerId: payload.trigger_id,
@@ -111,12 +118,10 @@ export const handler: Handlers = {
         });
         return resp;
       }
-
-      // andere Form-Events acken
       return new Response("", { status: 200 });
     }
 
-    // ─── 4) Fallback ──────────────────────────────────────
+    // ─── 4) Fallback ────────────────────────────────────────────
     return new Response("", { status: 200 });
   },
 };

@@ -130,6 +130,7 @@ export async function testEndpoint(
     // 8) Erwartete Struktur laden (jetzt nur noch "expected/…")
     const parts = endpoint.expectedStructure.split("/");
     const expectedPath = resolveProjectPath(...parts);
+    console.log("🔍 Erwartete Struktur wird geladen von:", expectedPath); // Debugging log
     if (!existsSync(expectedPath)) {
       const msg = `Erwartete Datei nicht gefunden: ${expectedPath}`;
       console.warn(`⚠️ ${msg}`);
@@ -189,6 +190,7 @@ export async function testEndpoint(
     if (hasDiff) {
       const baseName = endpoint.name.replace(/\s+/g, "_");
       const nextPath = getNextUpdatedPath(baseName);
+      console.log("📄 Neue Struktur wird gespeichert unter:", nextPath); // Debugging log
       ensureFileSync(nextPath);
       await Deno.writeTextFile(nextPath, JSON.stringify(transformed, null, 2));
       console.log(`📄 Saved updated structure: ${nextPath}`);

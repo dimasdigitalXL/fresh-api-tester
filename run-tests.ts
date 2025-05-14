@@ -1,4 +1,8 @@
 // run-tests.ts
+
+// 1) Lade deine Env-Variablen via URL-Import (nicht via $std)
+import "https://deno.land/std@0.216.0/dotenv/load.ts";
+
 import { loadConfig } from "./src/api-tester/core/configLoader.ts";
 import {
   runSingleEndpoint,
@@ -8,24 +12,26 @@ import { sendSlackReport } from "./src/api-tester/core/slack/slackReporter/sendS
 import type { TestResult } from "./src/api-tester/core/apiCaller.ts";
 
 export async function runAllTests(): Promise<void> {
-  const cfg = await loadConfig();
+  console.log("▶️ run-tests.ts: starte Batch-Durchlauf");
 
-  // Statt any[] jetzt VersionUpdate[]
+  // 2) Config laden
+  const cfg = await loadConfig();
+  console.log("🔧 Endpunkte:", cfg.endpoints.map((e) => e.name));
+
   const versionUpdates: VersionUpdate[] = [];
-  // Ergebnisse als TestResult[]
   const results: TestResult[] = [];
 
+  // 3) Jeden Endpoint testen
   for (const ep of cfg.endpoints) {
     const res = await runSingleEndpoint(ep, cfg, versionUpdates);
-    if (res) {
-      results.push(res);
-    }
+    if (res) results.push(res);
   }
 
+  console.log("▶️ run-tests.ts: Tests fertig, sende Slack-Report");
   await sendSlackReport(results, versionUpdates);
+  console.log("✅ run-tests.ts: Batch-Durchlauf abgeschlossen");
 }
 
-// Skript direkt ausführbar machen
 if (import.meta.main) {
   await runAllTests();
 }

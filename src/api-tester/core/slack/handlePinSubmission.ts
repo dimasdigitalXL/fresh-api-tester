@@ -1,11 +1,9 @@
 // src/api-tester/core/slack/handlePinSubmission.ts
 
 import axios from "https://esm.sh/axios@1.4.0";
-import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
-import { join } from "https://deno.land/std@0.216.0/path/mod.ts";
-import { resolveProjectPath } from "../utils.ts";
+// ① korrekter Import der Kv-Instanz
+import { kvInstance } from "../kv.ts";
 import { getSlackWorkspaces } from "./slackWorkspaces.ts";
-import { getLatestUpdatedFile } from "../structureAnalyzer.ts";
 import { getDisplayName } from "./getDisplayName.ts";
 
 export interface SlackSubmissionPayload {
@@ -25,121 +23,98 @@ export async function handlePinSubmission(
   payload: SlackSubmissionPayload,
 ): Promise<null> {
   console.log("🔔 handlePinSubmission aufgerufen");
-  console.log("🔍 Payload.view:", JSON.stringify(payload.view, null, 2));
-  console.log("🔍 Payload.user:", JSON.stringify(payload.user));
 
+  // 1) PIN auslesen
   const pin = payload.view.state.values.pin_input.pin.value;
-  console.log("🔑 Eingegebene PIN:", pin);
 
+  // 2) private_metadata parsen
   let meta: { endpoint: string; original_ts: string; channel: string };
   try {
     meta = JSON.parse(payload.view.private_metadata);
-    console.log("📝 private_metadata geparsed:", meta);
-  } catch (e) {
-    console.error("❌ Konnte private_metadata nicht parsen:", e);
+  } catch {
+    console.error("❌ Konnte private_metadata nicht parsen");
     return null;
   }
   const { endpoint, original_ts: originalTs, channel } = meta;
+  const key = endpoint.replace(/\s+/g, "_");
 
-  // Workspace & Token
+  // 3) Workspace & Token ermitteln
   const ws = getSlackWorkspaces().find((w) => w.channel === channel);
   if (!ws) {
     console.error("🚨 Kein Workspace gefunden für Channel:", channel);
     return null;
   }
-  console.log("✅ Slack-Workspace gefunden:", ws.channel);
   const token = ws.token;
 
-  // User-Name
+  // 4) DisplayName holen
   let userName: string;
   try {
     userName = await getDisplayName(payload.user.id, token);
-    console.log("👤 Angefragter User:", userName);
   } catch (e) {
     console.error("❌ Fehler bei getDisplayName:", e);
     return null;
   }
 
-  // PIN prüfen
+  // 5) PIN prüfen
   const GLOBAL_PIN = Deno.env.get("SLACK_APPROVE_PIN") ?? "1234";
   if (pin !== GLOBAL_PIN) {
     console.warn("❌ Falsche PIN für", endpoint);
     return null;
   }
-  console.log("✅ PIN korrekt, fahre fort…");
 
-  // 1) pending-approvals.json updaten
-  const approvalsPath = resolveProjectPath(
-    "api-tester",
-    "pending-approvals.json",
-  );
-  console.log("📂 approvalsPath:", approvalsPath);
-  if (existsSync(approvalsPath)) {
-    const raw = await Deno.readTextFile(approvalsPath);
-    const approvals = JSON.parse(raw) as Record<string, string>;
-    approvals[endpoint] = "waiting";
-    await Deno.writeTextFile(approvalsPath, JSON.stringify(approvals, null, 2));
-    console.log("✅ pending-approvals.json geschrieben");
-  } else {
-    console.warn("⚠️ pending-approvals.json nicht gefunden, übersprungen");
-  }
-
-  // 2) config.json übernehmen, falls neue Struktur vorliegt
-  const updatedFile = getLatestUpdatedFile(endpoint);
-  console.log("📄 Gefundene update-Datei:", updatedFile);
-  const configPath = resolveProjectPath("api-tester", "config.json");
-  console.log("📂 configPath:", configPath);
-  if (updatedFile && existsSync(configPath)) {
-    const rawCfg = await Deno.readTextFile(configPath);
-    const cfg = JSON.parse(rawCfg) as {
-      endpoints: Array<Record<string, unknown>>;
-    };
-    const entry = cfg.endpoints.find(
-      (e) => (e.name as string).replace(/\s+/g, "_") === endpoint,
-    );
-    if (entry) {
-      entry.expectedStructure = join("expected", updatedFile);
-      await Deno.writeTextFile(configPath, JSON.stringify(cfg, null, 2));
-      console.log("🛠️ config.json aktualisiert auf:", entry.expectedStructure);
-    } else {
-      console.warn("⚠️ Kein Eintrag in config.json für Endpoint:", endpoint);
-    }
-  }
-
-  // 3) Slack-Nachricht updaten
+  // 6) Approval-Status in KV speichern
   try {
-    const rawAppr = await Deno.readTextFile(approvalsPath);
-    const { __rawBlocks = {} } = JSON.parse(rawAppr) as {
-      __rawBlocks?: Record<string, Array<unknown>>;
-    };
-    const key = endpoint.replace(/\s+/g, "_");
-    const originalBlocks = __rawBlocks[key] ?? [];
-    console.log("📦 Original Blocks:", originalBlocks.length, "Stück");
-    // Blocks filtern & neu anhängen…
-    const cleaned = (originalBlocks as Array<Record<string, unknown>>).filter(
-      (b) => b.block_id !== "decision_buttons",
+    const { value: storedApprovals } = await kvInstance.get<
+      Record<string, string>
+    >(
+      ["approvals"],
     );
-    if (cleaned.length > 0 && cleaned.at(-1)?.type === "divider") {
-      cleaned.pop();
-    }
-    const nowTime = new Date().toLocaleTimeString("de-DE");
+    const approvals = storedApprovals ?? {};
+    approvals[key] = "approved";
+    await kvInstance.set(["approvals"], approvals);
+    console.log("✅ KV: approval status ‘approved’ für", key);
+  } catch (e) {
+    console.error("❌ Fehler beim Speichern der Approvals in KV:", e);
+  }
+
+  // 7) Blocks aus KV lesen und Nachricht aktualisieren
+  console.log("🔧 Update Slack Nachricht für Endpoint:", endpoint);
+  try {
+    const { value: storedBlocks } = await kvInstance.get<
+      Array<Record<string, unknown>>
+    >(["rawBlocks", key]);
+    const originalBlocks = storedBlocks ?? [];
+
+    // Decision-Buttons entfernen
+    const cleaned = originalBlocks.filter((b) =>
+      b.block_id !== "decision_buttons"
+    );
+    // letzten Divider entfernen
+    if (cleaned.length > 0 && cleaned.at(-1)?.type === "divider") cleaned.pop();
+
+    // Bestätigungs-Abschnitt anhängen
+    const now = new Date().toLocaleTimeString("de-DE");
     const newSection = [
       { type: "divider" },
-      { type: "section", text: { type: "mrkdwn", text: "_AKTUALISIERT_" } },
-      { type: "context", elements: [{ type: "mrkdwn", text: nowTime }] },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `_AKTUALISIERT_ • ${now}` },
+      },
       {
         type: "section",
         text: { type: "mrkdwn", text: `✅ *Freigegeben durch ${userName}*` },
       },
     ];
-    console.log("🔁 Sende chat.update mit zusätzlichen Blocks");
-    await axios.post(
+    const updatedBlocks = [...cleaned, ...newSection];
+
+    // Chat-Update
+    const resp = await axios.post(
       "https://slack.com/api/chat.update",
       {
         channel,
         ts: originalTs,
         text: `✅ ${userName} hat *${endpoint}* freigegeben.`,
-        blocks: [...cleaned, ...newSection],
+        blocks: updatedBlocks,
       },
       {
         headers: {
@@ -148,13 +123,16 @@ export async function handlePinSubmission(
         },
       },
     );
-    console.log("✅ Slack-Nachricht aktualisiert");
+    console.log("▶️ Slack API chat.update response:", resp.data);
+
+    // updatedBlocks zurück in KV
+    await kvInstance.set(["rawBlocks", key], updatedBlocks);
+    console.log("✅ KV: rawBlocks updated für", key);
   } catch (e) {
     console.error("❌ Fehler beim Slack-Update:", e);
   }
 
-  // 4) Tests sofort neu anstoßen
-  console.log("🚀 Starte erneuten Testdurchlauf");
+  // 8) Tests neu starten
   const cmd = new Deno.Command(Deno.execPath(), {
     args: ["run", "-A", "main.ts"],
     cwd: Deno.cwd(),
