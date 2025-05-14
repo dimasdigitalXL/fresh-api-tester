@@ -9,10 +9,6 @@ import { renderIssueBlocks } from "./renderIssueBlocks.ts";
 import { renderStatsBlock } from "./renderStatsBlock.ts";
 import type { TestResult } from "../../apiCaller.ts";
 
-/**
- * Sendet den API-Testbericht an alle konfigurierten Slack-Workspaces.
- * Schreibt außerdem die rohen Issue-Blocks und initialen Approval-Status ins KV.
- */
 export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: Array<{ name: string; url: string }> = [],
@@ -21,7 +17,7 @@ export async function sendSlackReport(
   const workspaces = getSlackWorkspaces();
   console.log("🔧 Slack Workspaces:", workspaces);
 
-  // 1) Statistik berechnen
+  // 1) Statistik
   const total = testResults.length;
   const success = testResults.filter((r) => r.success).length;
   const warnings =
@@ -31,59 +27,54 @@ export async function sendSlackReport(
     `📊 Gesamt: ${total}, ✅ ${success}, ⚠️ ${warnings}, 🔴 ${criticals}`,
   );
 
-  // 2) Basis-Blöcke bauen
+  // 2) Blocks zusammensetzen
   const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
   const versions = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
     : [];
-
-  // 3) Issue-Blocks (inkl. Action-Buttons) pro fehlerhaftem Endpunkt
   const failing = testResults.filter((r) => !r.success || r.isCritical);
+
+  // Jede Issue-Block-Gruppe bekommt eine eindeutige block_id
   const issues = failing.flatMap((result) => {
     const key = result.endpointName.replace(/\s+/g, "_");
-    // renderIssueBlocks liefert für EIN Ergebnis:
-    // [ section, context?, divider, actions, divider ]
     const blocks = renderIssueBlocks([result]);
     return blocks.map((block) => {
-      // alle „decision_buttons“ eindeutig machen
-      if (block.type === "actions" && block.block_id === "decision_buttons") {
-        return {
-          ...block,
-          block_id: `decision_buttons_${key}`,
-        };
+      const b = { ...block } as Record<string, unknown>;
+      if (b.type === "actions" && b.block_id === "decision_buttons") {
+        b.block_id = `decision_buttons_${key}`;
+      } else if (typeof b.block_id === "string") {
+        b.block_id = `${b.block_id}_${key}`;
       }
-      return block;
+      return b;
     });
   });
 
   const stats = renderStatsBlock(total, success, warnings, criticals);
   const blocks = [...header, ...versions, ...issues, ...stats];
-
   console.log(
     "▶️ Blocks, die wir an Slack schicken wollen:",
     JSON.stringify(blocks, null, 2),
   );
 
-  // 4) Raw-Blocks & initialen Approval-Status ins KV schreiben
+  // 3) Raw-Blocks & Approvals initial ins KV schreiben
   {
-    const kv = await kvInstance;
-    const { value: stored } = await kv.get<Record<string, string>>([
+    const { value: existing } = await kvInstance.get<Record<string, string>>([
       "approvals",
     ]);
-    const approvals = stored ?? {};
+    const approvals = existing ?? {};
     for (const result of failing) {
       const key = result.endpointName.replace(/\s+/g, "_");
-      const singleBlocks = renderIssueBlocks([result]);
-      await kv.set(["rawBlocks", key], singleBlocks);
+      const endpointBlocks = renderIssueBlocks([result]);
+      await kvInstance.set(["rawBlocks", key], endpointBlocks);
       approvals[key] = "pending";
     }
-    await kv.set(["approvals"], approvals);
+    await kvInstance.set(["approvals"], approvals);
     console.log("✅ KV: rawBlocks & approvals initial gespeichert");
   }
 
-  // 5) Fallback, falls > 50 Blocks
+  // 4) Fallback, falls zu viele Blocks
   if (blocks.length > 50) {
-    const fallback = [
+    const fallbackText = [
       `🔍 *API Testbericht*`,
       `⚠️ *${warnings + criticals} Abweichungen*`,
       `📊 Gesamt: ${total}, ✔️ ${success}, ⚠️ ${warnings}, 🔴 ${criticals}`,
@@ -92,7 +83,7 @@ export async function sendSlackReport(
       if (options.dryRun) continue;
       const resp = await axios.post(
         "https://slack.com/api/chat.postMessage",
-        { channel, text: fallback },
+        { channel, text: fallbackText },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -105,7 +96,7 @@ export async function sendSlackReport(
     return;
   }
 
-  // 6) Block-Kit Nachricht mit Buttons senden
+  // 5) Block-Kit Nachricht senden
   for (const { token, channel } of workspaces) {
     if (options.dryRun) continue;
     const resp = await axios.post(
