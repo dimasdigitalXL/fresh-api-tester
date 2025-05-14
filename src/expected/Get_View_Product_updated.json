@@ -1,0 +1,153 @@
+{
+  "data": {
+    "id": "string",
+    "uuid": "string",
+    "name": "string",
+    "description": "string",
+    "shortDescription": null,
+    "number": "string",
+    "project": {
+      "id": "string",
+      "name": "string"
+    },
+    "category": {
+      "id": "string",
+      "name": "string"
+    },
+    "standardSupplier": {
+      "id": "string"
+    },
+    "stockCount": 0,
+    "shopPriceDisplay": "string",
+    "ean": "string",
+    "manufacturer": {
+      "name": "string",
+      "number": null,
+      "url": null
+    },
+    "customsTariffNumber": "string",
+    "options": [],
+    "selectedOptions": [],
+    "variants": [],
+    "isVariant": false,
+    "variantOf": null,
+    "mainVariant": null,
+    "thumbnailUrl": "string",
+    "thumbnailId": "string",
+    "tags": [
+      {
+        "id": "string",
+        "name": "string",
+        "color": "string"
+      }
+    ],
+    "freeFields": [
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      }
+    ],
+    "countryOfOrigin": "string",
+    "regionOfOrigin": "string",
+    "internalComment": "string",
+    "isDeleted": false,
+    "measurements": {
+      "weight": {
+        "value": 0,
+        "unit": "string"
+      },
+      "netWeight": {
+        "value": 0,
+        "unit": "string"
+      },
+      "length": {
+        "value": 0,
+        "unit": "string"
+      },
+      "width": {
+        "value": 0,
+        "unit": "string"
+      },
+      "height": {
+        "value": 0,
+        "unit": "string"
+      }
+    },
+    "minimumOrderQuantity": 0,
+    "minimumStorageQuantity": 0,
+    "salesTax": "string",
+    "hasBatches": false,
+    "serialNumbersMode": "string",
+    "hasBestBeforeDate": false,
+    "hasBillOfMaterials": false,
+    "isAssembledJustInTime": false,
+    "isProductionProduct": false,
+    "isExternallyProduced": false,
+    "allowPurchaseFromAllSuppliers": false,
+    "isDisabled": false,
+    "disabledReason": null,
+    "hidePriceOnDocuments": false,
+    "ageRating": null,
+    "isStockItem": true,
+    "defaultStorageLocation": {
+      "id": "string",
+      "designation": "string",
+      "warehouse": {
+        "id": "string",
+        "designation": "string"
+      }
+    },
+    "isStockTakingDisabled": false,
+    "isCustomProduct": false,
+    "hideJustInTimeItemsOnDocuments": false,
+    "markAsSoldOut": false,
+    "markAsInactive": false,
+    "isRemainingQuantity": false,
+    "isShippingCostsProduct": false,
+    "discount": {
+      "isDiscountProduct": false,
+      "discountPercentage": 0
+    },
+    "stockTaking": {
+      "hasStockTakingValue": false,
+      "stockTakingValue": 0
+    },
+    "calculatedPurchasePrice": {
+      "hasCalculatedPurchasePrice": true,
+      "price": {
+        "amount": "string",
+        "currency": "string"
+      }
+    },
+    "unit": {
+      "name": "string"
+    },
+    "updatedAt": "string"
+  }
+}

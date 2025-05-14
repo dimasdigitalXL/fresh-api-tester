@@ -1,10 +1,23 @@
 // src/api-tester/core/kv.ts
 
-// Wenn auf Deno Deploy gebunden, liegt ein globales KV vor.
-// Lokaler Testfall: Deno.openKv()
+// 1) globalThis.KV als Deno.Kv bekannt machen
 declare global {
-  // Binding-Name in Deno Deploy muss 'KV' sein
+  // Deno Deploy stellt globalThis.KV als Deno.Kv zur Verfügung
   var KV: Deno.Kv;
 }
 
-export const kvInstance: Deno.Kv = globalThis.KV ?? await Deno.openKv();
+let _kv: Deno.Kv;
+
+if (typeof globalThis.KV !== "undefined") {
+  // Auf Deno Deploy
+  _kv = globalThis.KV;
+} else if (typeof Deno.openKv === "function") {
+  // Lokal mit --unstable-kv
+  _kv = await Deno.openKv();
+} else {
+  throw new Error(
+    "Deno KV ist nicht verfügbar. Starte mit --unstable-kv oder deploye auf Deno Deploy.",
+  );
+}
+
+export const kvInstance = _kv;
