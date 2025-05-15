@@ -113,6 +113,7 @@ export const handler = async (
     const key = payload.view.private_metadata; // unser key
     const pin = payload.view.state.values.pin_input.pin_value.value;
     const expectedPin = Deno.env.get("APPROVAL_PIN")!;
+    console.log("🔑 Loaded APPROVAL_PIN:", expectedPin);
 
     if (pin === expectedPin) {
       // aus KV lesen und defaulten
