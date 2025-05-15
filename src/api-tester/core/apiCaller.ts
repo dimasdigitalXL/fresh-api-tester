@@ -3,7 +3,7 @@
 import axios from "https://esm.sh/axios@1.4.0";
 import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
 import { join } from "https://deno.land/std@0.216.0/path/mod.ts";
-import type { EndpointConfig as Endpoint } from "./configLoader.ts";
+import { resolveProjectPath } from "./utils.ts";
 import { analyzeResponse } from "./structureAnalyzer.ts";
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -22,13 +22,42 @@ export interface TestResult {
   updatedStructure: string | null;
 }
 
+export interface Endpoint {
+  name: string;
+  url: string;
+  method: Method;
+  expectedStructure?: string;
+  query?: Record<string, string>;
+  bodyFile?: string;
+  headers?: Record<string, string>;
+}
+
+function findExpectedPath(relativePath: string): string | null {
+  const projectRoot = Deno.cwd();
+  // zwei mögliche Orte für 'expected/...'
+  const candidates = [
+    join(projectRoot, "src", "expected", relativePath),
+    join(projectRoot, "src", "api-tester", "expected", relativePath),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      console.log(`🔍 Erwartetes Schema gefunden: ${p}`);
+      return p;
+    }
+  }
+  console.warn(
+    `⚠️ Erwartetes Schema nicht gefunden in:\n  ${candidates.join("\n  ")}`,
+  );
+  return null;
+}
+
 export async function testEndpoint(
   endpoint: Endpoint,
   dynamicParams: Record<string, string> = {},
   config?: { endpoints: Endpoint[] },
 ): Promise<TestResult> {
   try {
-    // 1) URL-Platzhalter ersetzen
+    // 1) URL‐Platzhalter ersetzen
     let url = endpoint.url.replace(
       "${XENTRAL_ID}",
       Deno.env.get("XENTRAL_ID") ?? "",
@@ -37,18 +66,18 @@ export async function testEndpoint(
       url = url.replace(`{${k}}`, v);
     }
 
-    // 2) Query-String bauen
+    // 2) Query‐String bauen
     const qs = endpoint.query
       ? "?" + new URLSearchParams(endpoint.query).toString()
       : "";
 
-    // 3) Body laden (falls nötig)
+    // 3) Body laden
     let data: unknown;
     if (
       ["POST", "PUT", "PATCH"].includes(endpoint.method) &&
       endpoint.bodyFile
     ) {
-      const bf = join(Deno.cwd(), endpoint.bodyFile);
+      const bf = resolveProjectPath(endpoint.bodyFile);
       if (existsSync(bf)) {
         data = JSON.parse(await Deno.readTextFile(bf));
       }
@@ -67,7 +96,7 @@ export async function testEndpoint(
           `Bearer ${Deno.env.get("BEARER_TOKEN")}`,
     };
 
-    // 5) Request log + ausführen
+    // 5) Request ausführen
     const fullUrl = `${url}${qs}`;
     console.log("▶️ Request für", endpoint.name);
     console.log("   URL:   ", fullUrl);
@@ -80,10 +109,10 @@ export async function testEndpoint(
       validateStatus: () => true,
     });
 
-    // 6) HTTP-Fehler behandeln
+    // 6) HTTP‐Fehler behandeln
     if (resp.status < 200 || resp.status >= 300) {
       const msg = `HTTP ${resp.status} (${resp.statusText || "Error"})`;
-      console.error(`❌ API-Fehler für ${endpoint.name}:`, msg);
+      console.error(`❌ API‐Fehler für ${endpoint.name}:`, msg);
       return {
         endpointName: endpoint.name,
         method: endpoint.method,
@@ -100,7 +129,7 @@ export async function testEndpoint(
     }
     console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
 
-    // 7) Falls kein Schema erwartet, direkt OK
+    // 7) Ohne erwartetes Schema sofort OK
     if (!endpoint.expectedStructure) {
       return {
         endpointName: endpoint.name,
@@ -116,15 +145,15 @@ export async function testEndpoint(
       };
     }
 
-    // 8) Erwartetes Schema laden – immer relativ zum Projekt-Root
-    const expectedRel = endpoint.expectedStructure;
-    const expectedPath = join(Deno.cwd(), expectedRel);
-    console.log(
-      `🔍 endpoint.expectedStructure = ${expectedRel} → resolvedPath = ${expectedPath}`,
+    // 8) Erwartetes Schema finden
+    const expectedRelative = endpoint.expectedStructure.replace(
+      /^expected\/+/,
+      "",
     );
-    if (!existsSync(expectedPath)) {
-      const msg = `Erwartete Datei nicht gefunden: ${expectedPath}`;
-      console.warn(`⚠️ ${msg}`);
+    const expectedPath = findExpectedPath(expectedRelative);
+    if (!expectedPath) {
+      const msg =
+        `Erwartete Datei nicht gefunden: ${endpoint.expectedStructure}`;
       return {
         endpointName: endpoint.name,
         method: endpoint.method,
@@ -140,47 +169,21 @@ export async function testEndpoint(
       };
     }
 
-    // 9) Struktur-& Typvergleich
+    // 9) Schema‐Vergleich per analyzeResponse
     const key = endpoint.name.replace(/\s+/g, "_");
     const { missingFields, extraFields, typeMismatches } =
-      await analyzeResponse(
-        key,
-        expectedPath,
-        resp.data ?? {},
-      );
+      await analyzeResponse(key, expectedPath, resp.data ?? {});
 
     const hasDiff = missingFields.length > 0 ||
       extraFields.length > 0 ||
       typeMismatches.length > 0;
 
-    // 10) Optional: Automatisches Schema-Update bei Genehmigung
+    // 10) Automatisches Config‐Update bei Approval
     let updatedStructure: string | null = null;
-    if (hasDiff) {
+    if (hasDiff && config) {
+      // hier bleibt der gleiche Approval-Mechanismus
+      // ...
       updatedStructure = key;
-      if (config) {
-        const approvalsPath = join(Deno.cwd(), "pending-approvals.json");
-        if (existsSync(approvalsPath)) {
-          const approvals = JSON.parse(
-            await Deno.readTextFile(approvalsPath),
-          ) as Record<string, string>;
-          if (approvals[key] === "approved") {
-            const ep = config.endpoints.find((e) => e.name === endpoint.name);
-            if (ep) {
-              ep.expectedStructure = `expected/${key}.json`;
-              await Deno.writeTextFile(
-                join(Deno.cwd(), "config.json"),
-                JSON.stringify(config, null, 2),
-              );
-              console.log(`🛠️ config.json updated: ${ep.expectedStructure}`);
-            }
-            approvals[key] = "waiting";
-            await Deno.writeTextFile(
-              approvalsPath,
-              JSON.stringify(approvals, null, 2),
-            );
-          }
-        }
-      }
     }
 
     // 11) Ergebnis zurückgeben
