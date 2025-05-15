@@ -27,11 +27,8 @@ export async function runAllTests(): Promise<void> {
     if (res) results.push(res);
   }
 
-  console.log(
-    "▶️ run-tests.ts: Tests fertig, sende Slack-Report im Dry-Run-Modus",
-  );
-  // Hier den Dry-Run aktivieren, damit wir nur die Payload in der Konsole sehen
-  console.log("▶️ run-tests.ts: Tests fertig, sende echten Slack-Report");
+  console.log("▶️ run-tests.ts: Tests fertig, sende Slack-Report");
+  // echten Slack-Report senden
   await sendSlackReport(results, versionUpdates);
 }
 
