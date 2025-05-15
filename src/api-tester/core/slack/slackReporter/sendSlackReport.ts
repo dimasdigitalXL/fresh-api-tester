@@ -63,6 +63,11 @@ export async function sendSlackReport(
     ]);
     const approvals = existing ?? {};
     for (const result of failing) {
+      const raw = renderIssueBlocks([result]);
+      console.log(
+        `Issue Blocks für ${result.endpointName}:`,
+        JSON.stringify(raw, null, 2),
+      );
       const key = result.endpointName.replace(/\s+/g, "_");
       const endpointBlocks = renderIssueBlocks([result]);
       await kvInstance.set(["rawBlocks", key], endpointBlocks);
