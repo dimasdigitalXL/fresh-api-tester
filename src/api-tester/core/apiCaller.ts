@@ -3,7 +3,7 @@
 import axios from "https://esm.sh/axios@1.4.0";
 import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
 import { join } from "https://deno.land/std@0.216.0/path/mod.ts";
-import { resolveProjectPath } from "./utils.ts";
+import type { EndpointConfig as Endpoint } from "./configLoader.ts";
 import { analyzeResponse } from "./structureAnalyzer.ts";
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -22,49 +22,39 @@ export interface TestResult {
   updatedStructure: string | null;
 }
 
-export interface Endpoint {
-  name: string;
-  url: string;
-  method: Method;
-  expectedStructure?: string;
-  query?: Record<string, string>;
-  bodyFile?: string;
-  headers?: Record<string, string>;
-}
-
 export async function testEndpoint(
   endpoint: Endpoint,
   dynamicParams: Record<string, string> = {},
   config?: { endpoints: Endpoint[] },
 ): Promise<TestResult> {
   try {
-    // ─── 1) URL-Platzhalter ersetzen ────────────────────────────────────
+    // 1) URL-Platzhalter ersetzen
     let url = endpoint.url.replace(
       "${XENTRAL_ID}",
       Deno.env.get("XENTRAL_ID") ?? "",
     );
-    for (const [key, val] of Object.entries(dynamicParams)) {
-      url = url.replace(`{${key}}`, val);
+    for (const [k, v] of Object.entries(dynamicParams)) {
+      url = url.replace(`{${k}}`, v);
     }
 
-    // ─── 2) Query-String bauen ─────────────────────────────────────────
+    // 2) Query-String bauen
     const qs = endpoint.query
       ? "?" + new URLSearchParams(endpoint.query).toString()
       : "";
 
-    // ─── 3) Body laden ────────────────────────────────────────────────
+    // 3) Body laden (falls nötig)
     let data: unknown;
     if (
       ["POST", "PUT", "PATCH"].includes(endpoint.method) &&
       endpoint.bodyFile
     ) {
-      const bf = resolveProjectPath(endpoint.bodyFile);
+      const bf = join(Deno.cwd(), endpoint.bodyFile);
       if (existsSync(bf)) {
         data = JSON.parse(await Deno.readTextFile(bf));
       }
     }
 
-    // ─── 4) Header + Auth ─────────────────────────────────────────────
+    // 4) Header + Auth
     const baseHeaders = endpoint.headers ?? {};
     const headers: Record<string, string> = {
       ...baseHeaders,
@@ -77,7 +67,7 @@ export async function testEndpoint(
           `Bearer ${Deno.env.get("BEARER_TOKEN")}`,
     };
 
-    // ─── 5) Request ausführen ─────────────────────────────────────────
+    // 5) Request log + ausführen
     const fullUrl = `${url}${qs}`;
     console.log("▶️ Request für", endpoint.name);
     console.log("   URL:   ", fullUrl);
@@ -90,7 +80,7 @@ export async function testEndpoint(
       validateStatus: () => true,
     });
 
-    // ─── 6) HTTP-Error behandeln ─────────────────────────────────────
+    // 6) HTTP-Fehler behandeln
     if (resp.status < 200 || resp.status >= 300) {
       const msg = `HTTP ${resp.status} (${resp.statusText || "Error"})`;
       console.error(`❌ API-Fehler für ${endpoint.name}:`, msg);
@@ -110,7 +100,7 @@ export async function testEndpoint(
     }
     console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
 
-    // ─── 7) Kein erwartetes Schema → OK ───────────────────────────────
+    // 7) Falls kein Schema erwartet, direkt OK
     if (!endpoint.expectedStructure) {
       return {
         endpointName: endpoint.name,
@@ -126,14 +116,11 @@ export async function testEndpoint(
       };
     }
 
-    // ─── 8) Erwartetes Schema laden ──────────────────────────────────
-    const parts = endpoint.expectedStructure.split("/");
-    const expectedPath = resolveProjectPath(...parts);
+    // 8) Erwartetes Schema laden – immer relativ zum Projekt-Root
+    const expectedRel = endpoint.expectedStructure;
+    const expectedPath = join(Deno.cwd(), expectedRel);
     console.log(
-      "🔍 endpoint.expectedStructure =",
-      endpoint.expectedStructure,
-      "→ resolvedPath =",
-      expectedPath,
+      `🔍 endpoint.expectedStructure = ${expectedRel} → resolvedPath = ${expectedPath}`,
     );
     if (!existsSync(expectedPath)) {
       const msg = `Erwartete Datei nicht gefunden: ${expectedPath}`;
@@ -153,52 +140,50 @@ export async function testEndpoint(
       };
     }
 
-    // ─── 9) Struktur-Vergleich per analyzeResponse ────────────────────
-    // (transformValues + compareStructures + FS/KV-Fallback)
+    // 9) Struktur-& Typvergleich
     const key = endpoint.name.replace(/\s+/g, "_");
-    const {
-      missingFields,
-      extraFields,
-      typeMismatches,
-    } = await analyzeResponse(key, expectedPath, resp.data ?? {});
+    const { missingFields, extraFields, typeMismatches } =
+      await analyzeResponse(
+        key,
+        expectedPath,
+        resp.data ?? {},
+      );
 
     const hasDiff = missingFields.length > 0 ||
       extraFields.length > 0 ||
       typeMismatches.length > 0;
 
-    // updatedStructure markiert nur den Key, wenn es eine Diff gab
-    const updatedStructure = hasDiff ? key : null;
-
-    // ─── 10) Autom. Config-Update bei Approval ───────────────────────
-    if (updatedStructure && config) {
-      const approvalsPath = resolveProjectPath("pending-approvals.json");
-      if (existsSync(approvalsPath)) {
-        const approvals = JSON.parse(
-          await Deno.readTextFile(approvalsPath),
-        ) as Record<string, string>;
-        if (approvals[key] === "approved") {
-          const ep = config.endpoints.find((e) => e.name === endpoint.name);
-          if (ep) {
-            ep.expectedStructure = join("expected", `${updatedStructure}.json`);
+    // 10) Optional: Automatisches Schema-Update bei Genehmigung
+    let updatedStructure: string | null = null;
+    if (hasDiff) {
+      updatedStructure = key;
+      if (config) {
+        const approvalsPath = join(Deno.cwd(), "pending-approvals.json");
+        if (existsSync(approvalsPath)) {
+          const approvals = JSON.parse(
+            await Deno.readTextFile(approvalsPath),
+          ) as Record<string, string>;
+          if (approvals[key] === "approved") {
+            const ep = config.endpoints.find((e) => e.name === endpoint.name);
+            if (ep) {
+              ep.expectedStructure = `expected/${key}.json`;
+              await Deno.writeTextFile(
+                join(Deno.cwd(), "config.json"),
+                JSON.stringify(config, null, 2),
+              );
+              console.log(`🛠️ config.json updated: ${ep.expectedStructure}`);
+            }
+            approvals[key] = "waiting";
             await Deno.writeTextFile(
-              resolveProjectPath("config.json"),
-              JSON.stringify(config, null, 2),
-            );
-            console.log(
-              `🛠️ config.json updated für "${endpoint.name}":`,
-              ep.expectedStructure,
+              approvalsPath,
+              JSON.stringify(approvals, null, 2),
             );
           }
-          approvals[key] = "waiting";
-          await Deno.writeTextFile(
-            approvalsPath,
-            JSON.stringify(approvals, null, 2),
-          );
         }
       }
     }
 
-    // ─── 11) Ergebnis zurückgeben ────────────────────────────────────
+    // 11) Ergebnis zurückgeben
     return {
       endpointName: endpoint.name,
       method: endpoint.method,
@@ -206,16 +191,6 @@ export async function testEndpoint(
       isCritical: hasDiff,
       statusCode: resp.status,
       errorMessage: null,
-      errorDetails: hasDiff
-        ? `Fehlende: ${missingFields.join(", ")} | ` +
-          `Unerwartete: ${extraFields.join(", ")} | ` +
-          `Typabweichungen: ${
-            typeMismatches
-              .map((t) =>
-                `${t.path} (erwartet ${t.expected}, actual ${t.actual})`
-              ).join("; ")
-          }`
-        : undefined,
       missingFields,
       extraFields,
       typeMismatches,
