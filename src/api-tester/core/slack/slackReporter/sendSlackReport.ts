@@ -1,6 +1,6 @@
 // src/api-tester/core/slack/slackReporter/sendSlackReport.ts
 
-import axios from "https://esm.sh/axios@1.4.0";
+import axios, { type AxiosResponse } from "https://esm.sh/axios@1.4.0";
 import { kvInstance } from "../../kv.ts";
 import { getSlackWorkspaces } from "../slackWorkspaces.ts";
 import { renderHeaderBlock } from "./renderHeaderBlock.ts";
@@ -9,12 +9,25 @@ import { renderIssueBlocks } from "./renderIssueBlocks.ts";
 import { renderStatsBlock } from "./renderStatsBlock.ts";
 import type { TestResult } from "../../apiCaller.ts";
 
+interface SlackWorkspace {
+  token: string;
+  channel: string;
+  signingSecret: string;
+}
+
+interface SlackPostMessageResponse {
+  ok: boolean;
+  channel: string;
+  ts: string;
+  error?: string;
+}
+
 export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: Array<{ name: string; url: string }> = [],
   options: { dryRun?: boolean } = {},
 ): Promise<void> {
-  const workspaces = getSlackWorkspaces();
+  const workspaces: SlackWorkspace[] = getSlackWorkspaces();
   console.log("🔧 Slack Workspaces:", workspaces);
 
   // 1) Statistik
@@ -29,7 +42,7 @@ export async function sendSlackReport(
 
   // 2) Blocks zusammensetzen
   const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
-  const versions = versionUpdates.length > 0
+  const versions = versionUpdates.length
     ? renderVersionBlocks(versionUpdates)
     : [];
   const failing = testResults.filter((r) => !r.success || r.isCritical);
@@ -37,14 +50,9 @@ export async function sendSlackReport(
   // Jede Issue-Block-Gruppe bekommt eine eindeutige block_id
   const issues = failing.flatMap((result) => {
     const key = result.endpointName.replace(/\s+/g, "_");
-    const blocks = renderIssueBlocks([result]);
-    return blocks.map((block) => {
-      const b = { ...block } as Record<string, unknown>;
-      if (b.type === "actions" && b.block_id === "decision_buttons") {
-        b.block_id = `decision_buttons_${key}`;
-      } else if (typeof b.block_id === "string") {
-        b.block_id = `${b.block_id}_${key}`;
-      }
+    return renderIssueBlocks([result]).map((blk) => {
+      const b = { ...blk } as { type: string; block_id?: string };
+      if (b.block_id) b.block_id = `${b.block_id}_${key}`;
       return b;
     });
   });
@@ -63,14 +71,8 @@ export async function sendSlackReport(
     ]);
     const approvals = existing ?? {};
     for (const result of failing) {
-      const raw = renderIssueBlocks([result]);
-      console.log(
-        `Issue Blocks für ${result.endpointName}:`,
-        JSON.stringify(raw, null, 2),
-      );
       const key = result.endpointName.replace(/\s+/g, "_");
-      const endpointBlocks = renderIssueBlocks([result]);
-      await kvInstance.set(["rawBlocks", key], endpointBlocks);
+      await kvInstance.set(["rawBlocks", key], renderIssueBlocks([result]));
       approvals[key] = "pending";
     }
     await kvInstance.set(["approvals"], approvals);
@@ -84,14 +86,14 @@ export async function sendSlackReport(
       `⚠️ *${warnings + criticals} Abweichungen*`,
       `📊 Gesamt: ${total}, ✔️ ${success}, ⚠️ ${warnings}, 🔴 ${criticals}`,
     ].join("\n");
-    for (const { token, channel } of workspaces) {
+    for (const ws of workspaces) {
       if (options.dryRun) continue;
-      const resp = await axios.post(
+      const resp: AxiosResponse<SlackPostMessageResponse> = await axios.post(
         "https://slack.com/api/chat.postMessage",
-        { channel, text: fallbackText },
+        { channel: ws.channel, text: fallbackText },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${ws.token}`,
             "Content-Type": "application/json",
           },
         },
@@ -102,14 +104,14 @@ export async function sendSlackReport(
   }
 
   // 5) Block-Kit Nachricht senden
-  for (const { token, channel } of workspaces) {
+  for (const ws of workspaces) {
     if (options.dryRun) continue;
-    const resp = await axios.post(
+    const resp: AxiosResponse<SlackPostMessageResponse> = await axios.post(
       "https://slack.com/api/chat.postMessage",
-      { channel, text: "API Testbericht", blocks },
+      { channel: ws.channel, text: "API Testbericht", blocks },
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${ws.token}`,
           "Content-Type": "application/json",
         },
       },
