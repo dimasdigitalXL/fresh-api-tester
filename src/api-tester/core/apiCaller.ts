@@ -38,21 +38,21 @@ export async function testEndpoint(
   config?: { endpoints: Endpoint[] },
 ): Promise<TestResult> {
   try {
-    // 1) URL‐Platzhalter ersetzen
+    // ─── 1) URL-Platzhalter ersetzen ────────────────────────────────────
     let url = endpoint.url.replace(
       "${XENTRAL_ID}",
       Deno.env.get("XENTRAL_ID") ?? "",
     );
-    for (const [k, v] of Object.entries(dynamicParams)) {
-      url = url.replace(`{${k}}`, v);
+    for (const [key, val] of Object.entries(dynamicParams)) {
+      url = url.replace(`{${key}}`, val);
     }
 
-    // 2) Query‐String bauen
+    // ─── 2) Query-String bauen ─────────────────────────────────────────
     const qs = endpoint.query
       ? "?" + new URLSearchParams(endpoint.query).toString()
       : "";
 
-    // 3) Body laden
+    // ─── 3) Body laden ────────────────────────────────────────────────
     let data: unknown;
     if (
       ["POST", "PUT", "PATCH"].includes(endpoint.method) &&
@@ -64,7 +64,7 @@ export async function testEndpoint(
       }
     }
 
-    // 4) Header + Auth
+    // ─── 4) Header + Auth ─────────────────────────────────────────────
     const baseHeaders = endpoint.headers ?? {};
     const headers: Record<string, string> = {
       ...baseHeaders,
@@ -77,7 +77,7 @@ export async function testEndpoint(
           `Bearer ${Deno.env.get("BEARER_TOKEN")}`,
     };
 
-    // 5) Request ausführen
+    // ─── 5) Request ausführen ─────────────────────────────────────────
     const fullUrl = `${url}${qs}`;
     console.log("▶️ Request für", endpoint.name);
     console.log("   URL:   ", fullUrl);
@@ -90,10 +90,10 @@ export async function testEndpoint(
       validateStatus: () => true,
     });
 
-    // 6) HTTP‐Fehler behandeln
+    // ─── 6) HTTP-Error behandeln ─────────────────────────────────────
     if (resp.status < 200 || resp.status >= 300) {
       const msg = `HTTP ${resp.status} (${resp.statusText || "Error"})`;
-      console.error(`❌ API‐Fehler für ${endpoint.name}:`, msg);
+      console.error(`❌ API-Fehler für ${endpoint.name}:`, msg);
       return {
         endpointName: endpoint.name,
         method: endpoint.method,
@@ -110,7 +110,7 @@ export async function testEndpoint(
     }
     console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
 
-    // 7) Wenn kein erwartetes Schema, sofort OK
+    // ─── 7) Kein erwartetes Schema → OK ───────────────────────────────
     if (!endpoint.expectedStructure) {
       return {
         endpointName: endpoint.name,
@@ -126,9 +126,15 @@ export async function testEndpoint(
       };
     }
 
-    // 8) Erwartetes Schema laden
+    // ─── 8) Erwartetes Schema laden ──────────────────────────────────
     const parts = endpoint.expectedStructure.split("/");
     const expectedPath = resolveProjectPath(...parts);
+    console.log(
+      "🔍 endpoint.expectedStructure =",
+      endpoint.expectedStructure,
+      "→ resolvedPath =",
+      expectedPath,
+    );
     if (!existsSync(expectedPath)) {
       const msg = `Erwartete Datei nicht gefunden: ${expectedPath}`;
       console.warn(`⚠️ ${msg}`);
@@ -147,19 +153,23 @@ export async function testEndpoint(
       };
     }
 
-    // 9) Schema‐Vergleich per analyzeResponse
+    // ─── 9) Struktur-Vergleich per analyzeResponse ────────────────────
+    // (transformValues + compareStructures + FS/KV-Fallback)
     const key = endpoint.name.replace(/\s+/g, "_");
-    const { missingFields, extraFields, typeMismatches } =
-      await analyzeResponse(key, expectedPath, resp.data ?? {});
+    const {
+      missingFields,
+      extraFields,
+      typeMismatches,
+    } = await analyzeResponse(key, expectedPath, resp.data ?? {});
 
     const hasDiff = missingFields.length > 0 ||
       extraFields.length > 0 ||
       typeMismatches.length > 0;
 
-    // updatedStructure signalisiert, dass ein Update angelegt wurde
+    // updatedStructure markiert nur den Key, wenn es eine Diff gab
     const updatedStructure = hasDiff ? key : null;
 
-    // 10) Automatisches Config‐Update bei Approval
+    // ─── 10) Autom. Config-Update bei Approval ───────────────────────
     if (updatedStructure && config) {
       const approvalsPath = resolveProjectPath("pending-approvals.json");
       if (existsSync(approvalsPath)) {
@@ -169,12 +179,15 @@ export async function testEndpoint(
         if (approvals[key] === "approved") {
           const ep = config.endpoints.find((e) => e.name === endpoint.name);
           if (ep) {
-            ep.expectedStructure = join("expected", updatedStructure);
+            ep.expectedStructure = join("expected", `${updatedStructure}.json`);
             await Deno.writeTextFile(
               resolveProjectPath("config.json"),
               JSON.stringify(config, null, 2),
             );
-            console.log(`🛠️ config.json updated: ${ep.expectedStructure}`);
+            console.log(
+              `🛠️ config.json updated für "${endpoint.name}":`,
+              ep.expectedStructure,
+            );
           }
           approvals[key] = "waiting";
           await Deno.writeTextFile(
@@ -185,7 +198,7 @@ export async function testEndpoint(
       }
     }
 
-    // 11) Ergebnis zurückgeben
+    // ─── 11) Ergebnis zurückgeben ────────────────────────────────────
     return {
       endpointName: endpoint.name,
       method: endpoint.method,
@@ -193,6 +206,16 @@ export async function testEndpoint(
       isCritical: hasDiff,
       statusCode: resp.status,
       errorMessage: null,
+      errorDetails: hasDiff
+        ? `Fehlende: ${missingFields.join(", ")} | ` +
+          `Unerwartete: ${extraFields.join(", ")} | ` +
+          `Typabweichungen: ${
+            typeMismatches
+              .map((t) =>
+                `${t.path} (erwartet ${t.expected}, actual ${t.actual})`
+              ).join("; ")
+          }`
+        : undefined,
       missingFields,
       extraFields,
       typeMismatches,
