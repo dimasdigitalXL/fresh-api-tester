@@ -37,6 +37,7 @@
         "id": "string"
       },
       "currency": "string",
+      "costCenter": null,
       "billingAddress": {
         "name": "string",
         "department": "string",

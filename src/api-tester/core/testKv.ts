@@ -1,6 +1,6 @@
 // src/api-tester/core/testKv.ts
 
-import { kv } from "./kv.ts"; // importiere kv, nicht kvInstance
+import { kvInstance as kv } from "./kv.ts";
 
 export async function testKv() {
   const key = ["test", "key"] as const;

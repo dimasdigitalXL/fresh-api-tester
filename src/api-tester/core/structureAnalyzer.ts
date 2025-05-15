@@ -2,10 +2,11 @@
 
 import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
 import { compareStructures } from "./compareStructures.ts";
-import { resolveProjectPath } from "./utils.ts";
+import { kvInstance } from "./kv.ts";
+import type { Diff, Schema } from "./types.ts";
 
 /**
- * Konvertiert verschachtelte API-Antwort in abstraktes Typmodell.
+ * Konvertiert verschachtelte API-Antwort in ein abstraktes Typmodell.
  * (Strings → "string", Zahlen → 0 usw.)
  */
 export function transformValues(value: unknown): unknown {
@@ -23,65 +24,73 @@ export function transformValues(value: unknown): unknown {
 }
 
 /**
- * Gibt den nächsten Pfad zurück, unter dem die neue aktualisierte Struktur
- * gespeichert werden soll, z.B.
- * src/api-tester/expected/Get_View_Customer_updated_v3.json
+ * Lädt das erwartete Schema zunächst aus Deno KV,
+ * falls vorhanden, sonst aus dem Dateisystem.
  */
-export function getNextUpdatedPath(baseName: string): string {
-  // Hardcodierter Pfad für den Ordner "expected"
-  const dir =
-    "/Users/dimaswahyuasmoro/my-deno-project/api-tester-fresh/src/expected";
-
-  // Verzeichnis erstellen, falls nicht vorhanden
-  if (!existsSync(dir)) {
-    Deno.mkdirSync(dir, { recursive: true });
+export async function loadExpectedSchema(
+  key: string,
+  fsPath: string,
+): Promise<Schema> {
+  // 1) Versuch aus KV
+  const entry = await kvInstance.get<Schema>(["expected", key]);
+  if (entry.value) {
+    return entry.value;
   }
 
-  // Liste der bestehenden *_updated*.json-Dateien
-  const entries = Array.from(Deno.readDirSync(dir))
-    .filter((e) => e.isFile)
-    .map((e) => e.name);
+  // 2) Fallback auf FS
+  if (existsSync(fsPath)) {
+    const raw = await Deno.readTextFile(fsPath);
+    return JSON.parse(raw) as Schema;
+  }
 
-  const basePattern = new RegExp(`^${baseName}_updated(?:_v(\\d+))?\\.json$`);
-  const versions = entries
-    .map((f) => {
-      const m = f.match(basePattern);
-      return m ? (m[1] ? parseInt(m[1], 10) : 0) : null;
-    })
-    .filter((v): v is number => v !== null);
-
-  const nextVer = versions.length > 0 ? Math.max(...versions) + 1 : 0;
-  const fileName = `${baseName}_updated${
-    nextVer === 0 ? "" : `_v${nextVer}`
-  }.json`;
-
-  // Rückgabe des Hardcodierten Pfades für die Datei
-  return `${dir}/${fileName}`;
+  throw new Error(`Erwartetes Schema nicht gefunden (KV & FS): ${key}`);
 }
 
 /**
- * Liefert den Dateinamen der zuletzt generierten *_updated[_vX].json zurück,
- * z. B. "Get_View_Customer_updated_v3.json"
+ * Speichert das aktualisierte Schema zuerst ins Dateisystem.
+ * Bei Schreibfehlern (z.B. readonly Deploy) schreibt es in KV.
  */
-export function getLatestUpdatedFile(baseName: string): string | null {
-  const dir = resolveProjectPath("api-tester", "expected");
-  if (!existsSync(dir)) return null;
-
-  const entries = Array.from(Deno.readDirSync(dir))
-    .filter((e) => e.isFile)
-    .map((e) => e.name);
-
-  const regex = new RegExp(`^${baseName}_updated(?:_v(\\d+))?\\.json$`);
-  const matches = entries
-    .map((file) => {
-      const m = file.match(regex);
-      return m ? { file, ver: m[1] ? parseInt(m[1], 10) : 0 } : null;
-    })
-    .filter((x): x is { file: string; ver: number } => x !== null)
-    .sort((a, b) => b.ver - a.ver);
-
-  return matches.length ? matches[0].file : null;
+export async function saveUpdatedSchema(
+  key: string,
+  fsPath: string,
+  schema: Schema,
+): Promise<void> {
+  try {
+    await Deno.writeTextFile(fsPath, JSON.stringify(schema, null, 2));
+  } catch (err) {
+    console.warn(
+      `⚠️ FS-Schreibfehler bei ${fsPath}: ${err}. Fallback auf KV.`,
+    );
+    await kvInstance.set(["expected", key], schema);
+  }
 }
 
-// Falls Du anderweitig compareStructures brauchst:
-export { compareStructures };
+/**
+ * Vergleicht die tatsächliche API-Antwort mit dem erwarteten Schema.
+ * Wenn Unterschiede gefunden werden, speichert es das neue Schema (FS oder KV).
+ * Gibt alle Diffs plus das generierte `updatedSchema` zurück.
+ */
+export async function analyzeResponse(
+  key: string,
+  fsPath: string,
+  actualResponse: unknown,
+): Promise<Diff> {
+  const expected = await loadExpectedSchema(key, fsPath);
+  const { missingFields, extraFields, typeMismatches } = compareStructures(
+    expected,
+    actualResponse,
+  );
+
+  // Neues Schema komplett basierend auf der aktuellen Antwort
+  const updatedSchema = transformValues(actualResponse) as Schema;
+
+  if (
+    missingFields.length > 0 ||
+    extraFields.length > 0 ||
+    typeMismatches.length > 0
+  ) {
+    await saveUpdatedSchema(key, fsPath, updatedSchema);
+  }
+
+  return { missingFields, extraFields, typeMismatches, updatedSchema };
+}

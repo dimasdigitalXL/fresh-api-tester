@@ -14,12 +14,14 @@
       "id": "string",
       "name": "string"
     },
-    "standardSupplier": null,
+    "standardSupplier": {
+      "id": "string"
+    },
     "stockCount": 0,
-    "shopPriceDisplay": null,
+    "shopPriceDisplay": "string",
     "ean": "string",
     "manufacturer": {
-      "name": null,
+      "name": "string",
       "number": null,
       "url": null
     },
@@ -30,13 +32,50 @@
     "isVariant": false,
     "variantOf": null,
     "mainVariant": null,
-    "thumbnailUrl": null,
-    "thumbnailId": null,
-    "tags": [],
-    "freeFields": [],
-    "countryOfOrigin": null,
-    "regionOfOrigin": "",
-    "internalComment": "",
+    "thumbnailUrl": "string",
+    "thumbnailId": "string",
+    "tags": [
+      {
+        "id": "string",
+        "name": "string",
+        "color": "string"
+      }
+    ],
+    "freeFields": [
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      },
+      {
+        "id": "string",
+        "name": "string",
+        "value": "string"
+      }
+    ],
+    "countryOfOrigin": "string",
+    "regionOfOrigin": "string",
+    "internalComment": "string",
     "isDeleted": false,
     "measurements": {
       "weight": {
@@ -75,8 +114,15 @@
     "disabledReason": null,
     "hidePriceOnDocuments": false,
     "ageRating": null,
-    "isStockItem": false,
-    "defaultStorageLocation": null,
+    "isStockItem": true,
+    "defaultStorageLocation": {
+      "id": "string",
+      "designation": "string",
+      "warehouse": {
+        "id": "string",
+        "designation": "string"
+      }
+    },
     "isStockTakingDisabled": false,
     "isCustomProduct": false,
     "hideJustInTimeItemsOnDocuments": false,
@@ -93,14 +139,14 @@
       "stockTakingValue": 0
     },
     "calculatedPurchasePrice": {
-      "hasCalculatedPurchasePrice": false,
+      "hasCalculatedPurchasePrice": true,
       "price": {
         "amount": "string",
         "currency": "string"
       }
     },
     "unit": {
-      "name": ""
+      "name": "string"
     },
     "updatedAt": "string"
   }
