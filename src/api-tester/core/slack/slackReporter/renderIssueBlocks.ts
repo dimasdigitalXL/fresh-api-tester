@@ -15,20 +15,26 @@ type Issue = Pick<
 
 export function renderIssueBlocks(issues: Issue[]): Block[] {
   return issues.flatMap((issue, index) => {
-    // Liste mit gekürzten Pfaden
+    // 1) Felder bereinigen
     const missing = issue.missingFields.map((m) =>
       m.replace(/^data(\[0\])?\./, "")
     );
     const extra = issue.extraFields.map((e) =>
       e.replace(/^data(\[0\])?\./, "")
     );
-    const types = (issue.typeMismatches || []).map((m) => ({
-      path: m.path.replace(/^data(\[0\])?\./, ""),
-      expected: m.expected,
-      actual: m.actual,
-    }));
+    const types = (issue.typeMismatches || []).map(
+      (m) =>
+        `• ${
+          m.path.replace(/^data(\[0\])?\./, "")
+        }: erwartet ${m.expected}, erhalten ${m.actual}`,
+    );
     const icon = issue.isCritical ? "🔴" : "🟠";
+    const key = issue.endpointName.replace(/\s+/g, "_");
 
+    // 2) Payload mit allen Diff-Daten serialisieren
+    const actionValue = JSON.stringify({ key, missing, extra, types });
+
+    // 3) Section-Block für die Überschrift
     const blocks: Block[] = [
       {
         type: "section",
@@ -41,50 +47,43 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
       },
     ];
 
+    // 4) Kontext-Blöcke für fehlende Felder, neue Felder und Typ-Abweichungen
     if (missing.length) {
       blocks.push({
         type: "context",
-        elements: [{
-          type: "mrkdwn",
-          text: `❌ Fehlende Felder: ${missing.join(", ")}`,
-        }],
+        elements: [
+          {
+            type: "mrkdwn",
+            text: `❌ Fehlende Felder: ${missing.join(", ")}`,
+          },
+        ],
       });
     }
-
     if (extra.length) {
       blocks.push({
         type: "context",
-        elements: [{
-          type: "mrkdwn",
-          text: `➕ Neue Felder: ${extra.join(", ")}`,
-        }],
+        elements: [
+          {
+            type: "mrkdwn",
+            text: `➕ Neue Felder: ${extra.join(", ")}`,
+          },
+        ],
       });
     }
-
     if (types.length) {
       blocks.push({
         type: "context",
-        elements: [{
-          type: "mrkdwn",
-          text: "⚠️ *Typabweichungen:*\n" +
-            types.map((t) =>
-              `• ${t.path}: erwartet \`${t.expected}\`, erhalten \`${t.actual}\``
-            ).join("\n"),
-        }],
+        elements: [
+          {
+            type: "mrkdwn",
+            text: `⚠️ *Typabweichungen:*\n${types.join("\n")}`,
+          },
+        ],
       });
     }
 
-    // Buttons nur, wenn echte Abweichungen oder kritisch
+    // 5) Buttons nur anzeigen, wenn Abweichungen oder kritischer Test vorliegen
     if (issue.isCritical || missing.length || extra.length || types.length) {
-      const key = issue.endpointName.replace(/\s+/g, "_");
-      // payload mit allen Details
-      const payload = JSON.stringify({
-        endpointName: issue.endpointName,
-        method: issue.method,
-        missing,
-        extra,
-        typeMismatches: types,
-      });
       blocks.push(
         { type: "divider" },
         {
@@ -96,14 +95,14 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
               text: { type: "plain_text", text: "✅ Einverstanden" },
               style: "primary",
               action_id: "open_pin_modal",
-              value: payload, // <-- hier kommt das JSON mit allen Diffs
+              value: actionValue, // Enthält key + Diff-Daten
             },
             {
               type: "button",
               text: { type: "plain_text", text: "⏸️ Warten" },
               style: "danger",
               action_id: "wait_action",
-              value: payload, // <-- gleiches Payload
+              value: key, // Nur der Endpoint-Key
             },
           ],
         },
