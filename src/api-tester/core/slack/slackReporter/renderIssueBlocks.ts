@@ -13,9 +13,16 @@ type Issue = Pick<
   | "isCritical"
 >;
 
+/**
+ * Rendert für jede Abweichung mehrere Slack-Blöcke:
+ *  - Überschrift mit Endpoint, Methode und Status-Icon
+ *  - Context-Blöcke für fehlende, neue und Typ-Abweichungen
+ *  - Action-Buttons, wobei der "Einverstanden"-Button
+ *    die Details als JSON in seinem value mitgibt.
+ */
 export function renderIssueBlocks(issues: Issue[]): Block[] {
   return issues.flatMap((issue, index) => {
-    // 1) Felder bereinigen
+    // Aufbereiten der Texte
     const missing = issue.missingFields.map((m) =>
       m.replace(/^data(\[0\])?\./, "")
     );
@@ -28,13 +35,13 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
           m.path.replace(/^data(\[0\])?\./, "")
         }: erwartet ${m.expected}, erhalten ${m.actual}`,
     );
+    // Icon: rot bei kritisch, orange bei Warnungen
     const icon = issue.isCritical ? "🔴" : "🟠";
+
+    // Key für action_id / block_id
     const key = issue.endpointName.replace(/\s+/g, "_");
 
-    // 2) Payload mit allen Diff-Daten serialisieren
-    const actionValue = JSON.stringify({ key, missing, extra, types });
-
-    // 3) Section-Block für die Überschrift
+    // Header-Section
     const blocks: Block[] = [
       {
         type: "section",
@@ -47,14 +54,14 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
       },
     ];
 
-    // 4) Kontext-Blöcke für fehlende Felder, neue Felder und Typ-Abweichungen
+    // Context-Blöcke für Details
     if (missing.length) {
       blocks.push({
         type: "context",
         elements: [
           {
             type: "mrkdwn",
-            text: `❌ Fehlende Felder: ${missing.join(", ")}`,
+            text: `❌ *Fehlende Felder:* ${missing.join(", ")}`,
           },
         ],
       });
@@ -65,7 +72,7 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
         elements: [
           {
             type: "mrkdwn",
-            text: `➕ Neue Felder: ${extra.join(", ")}`,
+            text: `➕ *Neue Felder:* ${extra.join(", ")}`,
           },
         ],
       });
@@ -76,39 +83,46 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
         elements: [
           {
             type: "mrkdwn",
-            text: `⚠️ *Typabweichungen:*\n${types.join("\n")}`,
+            text: `⚠️ *Typ-Abweichungen:*\n${types.join("\n")}`,
           },
         ],
       });
     }
 
-    // 5) Buttons nur anzeigen, wenn Abweichungen oder kritischer Test vorliegen
+    // Divider vor den Buttons oder als Abschluss
+    blocks.push({ type: "divider" });
+
+    // Buttons nur bei tatsächlichen Abweichungen oder kritischen Tests
     if (issue.isCritical || missing.length || extra.length || types.length) {
-      blocks.push(
-        { type: "divider" },
-        {
-          type: "actions",
-          block_id: `decision_buttons_${key}`,
-          elements: [
-            {
-              type: "button",
-              text: { type: "plain_text", text: "✅ Einverstanden" },
-              style: "primary",
-              action_id: "open_pin_modal",
-              value: actionValue, // Enthält key + Diff-Daten
-            },
-            {
-              type: "button",
-              text: { type: "plain_text", text: "⏸️ Warten" },
-              style: "danger",
-              action_id: "wait_action",
-              value: key, // Nur der Endpoint-Key
-            },
-          ],
-        },
-        { type: "divider" },
-      );
-    } else {
+      // Diff-Objekt serialisieren für das Modal
+      const diffPayload = JSON.stringify({
+        endpoint: issue.endpointName,
+        missing,
+        extra,
+        types,
+        isCritical: issue.isCritical,
+      });
+
+      blocks.push({
+        type: "actions",
+        block_id: `decision_buttons_${key}`,
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: "✅ Einverstanden" },
+            style: "primary",
+            action_id: "open_pin_modal",
+            value: diffPayload,
+          },
+          {
+            type: "button",
+            text: { type: "plain_text", text: "⏸️ Warten" },
+            style: "danger",
+            action_id: "wait_action",
+            value: key,
+          },
+        ],
+      });
       blocks.push({ type: "divider" });
     }
 

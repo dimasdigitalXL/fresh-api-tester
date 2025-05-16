@@ -4,18 +4,23 @@ import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 
 export interface OpenPinModalOptions {
   triggerId: string;
+  // jetzt JSON‐String mit endpointName, method, missing, extra, typeMismatches
   endpoint: string;
   messageTs: string;
   channelId: string;
 }
 
-/**
- * Öffnet ein Slack-Modal zur PIN-Verifizierung.
- * Wir lassen den Modal-Aufruf immer laufen, wenn Workspaces konfiguriert sind.
- */
+interface DiffPayload {
+  endpointName: string;
+  method: string;
+  missing: string[];
+  extra: string[];
+  typeMismatches: Array<{ path: string; expected: string; actual: string }>;
+}
+
 export async function openPinModal({
   triggerId,
-  endpoint,
+  endpoint: payloadJson,
   messageTs,
   channelId,
 }: OpenPinModalOptions): Promise<void> {
@@ -30,49 +35,115 @@ export async function openPinModal({
     }
     const ws = workspaces[0];
 
-    // 2) private_metadata für das Modal
+    // 2) payload parsen
+    let payload: DiffPayload;
+    try {
+      payload = JSON.parse(payloadJson);
+    } catch {
+      console.error(
+        "🚨 openPinModal: Ungültiges JSON im Button‐Value:",
+        payloadJson,
+      );
+      return;
+    }
+
+    // 3) private_metadata für das Modal
     const privateMetadata = JSON.stringify({
-      endpoint,
+      endpoint: payload.endpointName,
       original_ts: messageTs,
       channel: channelId,
     });
 
-    // 3) Modal-Definition
+    // 4) diff‐Blocks aufbauen
+    const diffBlocks = [];
+
+    if (payload.missing.length) {
+      diffBlocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*❌ Fehlende Felder (${payload.missing.length}):*\n• ` +
+            payload.missing.join("\n• "),
+        },
+      });
+    }
+    if (payload.extra.length) {
+      diffBlocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*➕ Neue Felder (${payload.extra.length}):*\n• ` +
+            payload.extra.join("\n• "),
+        },
+      });
+    }
+    if (payload.typeMismatches.length) {
+      diffBlocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*⚠️ Typabweichungen (${payload.typeMismatches.length}):*\n` +
+            payload.typeMismatches
+              .map((m) =>
+                `• ${m.path}: erwartet \`${m.expected}\`, erhalten \`${m.actual}\``
+              )
+              .join("\n"),
+        },
+      });
+    }
+    if (diffBlocks.length === 0) {
+      diffBlocks.push({
+        type: "section",
+        text: { type: "mrkdwn", text: "_Keine Abweichungen gefunden._" },
+      });
+    }
+
+    // 5) Modal definieren
     const view = {
       type: "modal",
       callback_id: "pin_submission",
       private_metadata: privateMetadata,
-      title: { type: "plain_text", text: "Verifizierung" },
+      title: { type: "plain_text", text: "Änderung bestätigen" },
       submit: { type: "plain_text", text: "Bestätigen" },
       close: { type: "plain_text", text: "Abbrechen" },
       blocks: [
         {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Endpoint:* ${payload.endpointName}\n` +
+              `*Methode:* \`${payload.method}\``,
+          },
+        },
+        { type: "divider" },
+        ...diffBlocks,
+        { type: "divider" },
+        {
           type: "input",
           block_id: "pin_input",
-          label: { type: "plain_text", text: "Bitte PIN eingeben:" },
+          label: { type: "plain_text", text: "PIN eingeben" },
           element: {
             type: "plain_text_input",
             action_id: "pin",
-            placeholder: {
-              type: "plain_text",
-              text: "nur mit richtiger PIN geht's weiter ;)",
-            },
+            placeholder: { type: "plain_text", text: "••••" },
+            min_length: 4,
+            max_length: 6,
           },
         },
       ],
     };
 
-    // 4) POST an Slack
+    // 6) Modal öffnen
     const resp = await fetch("https://slack.com/api/views.open", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${ws.token}`,
-        "Content-Type": "application/json",
+        "Content-Type": "application/json; charset=utf-8",
       },
       body: JSON.stringify({ trigger_id: triggerId, view }),
     });
 
-    // 5) Debug-Log
+    // 7) Debug‐Log
     const json = await resp.json();
     console.log("▶️ views.open response:", JSON.stringify(json, null, 2));
     if (!json.ok) {
