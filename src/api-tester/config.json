@@ -15,7 +15,7 @@
         "page[number]": 1,
         "page[size]": 50
       },
-      "expectedStructure": "expected/Get_List_Sales_Orders_updated_v1.json",
+      "expectedStructure": "expected/Get_List_Sales_Orders_updated.json",
       "requiresId": false
     },
     {
@@ -76,7 +76,7 @@
         "Accept": "application/vnd.xentral.minimal+json",
         "Authorization": "Bearer ${BEARER_TOKEN}"
       },
-      "expectedStructure": "expected/Get_List_Invoices.json",
+      "expectedStructure": "expected/Get_List_Invoices_updated.json",
       "requiresId": false
     },
     {
@@ -99,7 +99,7 @@
         "Accept": "application/json",
         "Authorization": "Bearer ${BEARER_TOKEN}"
       },
-      "expectedStructure": "expected/Get_List_Customers.json",
+      "expectedStructure": "expected/Get_List_Customers_updated.json",
       "requiresId": false,
       "versionChanged": true
     },
@@ -113,7 +113,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Customer_updated_v1.json",
+      "expectedStructure": "expected/Get_View_Customer_updated.json",
       "versionChanged": true
     },
     {

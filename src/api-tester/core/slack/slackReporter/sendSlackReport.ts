@@ -1,11 +1,12 @@
 // src/api-tester/core/slack/slackReporter/sendSlackReport.ts
 
 import axios from "https://esm.sh/axios@1.4.0";
+import { kvInstance } from "../../kv.ts";
 import { getSlackWorkspaces } from "../slackWorkspaces.ts";
 import { renderHeaderBlock } from "./renderHeaderBlock.ts";
 import { renderVersionBlocks } from "./renderVersionBlocks.ts";
-import { renderStatsBlock } from "./renderStatsBlock.ts";
 import { renderIssueBlocks } from "./renderIssueBlocks.ts";
+import { renderStatsBlock } from "./renderStatsBlock.ts";
 import type { TestResult } from "../../apiCaller.ts";
 
 export interface VersionUpdate {
@@ -16,33 +17,34 @@ export interface VersionUpdate {
 
 export async function sendSlackReport(
   testResults: TestResult[],
-  versionUpdates: VersionUpdate[] = [], // <— korrekter Default: leeres Array
+  versionUpdates: VersionUpdate[] = [], // korrekt: leeres Array als Default
+  options: { dryRun?: boolean } = {}, // Optionen-Objekt, Default leer → dryRun=false
 ): Promise<void> {
   const workspaces = getSlackWorkspaces();
-  if (workspaces.length === 0) {
-    console.warn("Kein Slack-Workspace konfiguriert – überspringe Report.");
-    return;
-  }
 
-  // 1) Header & Datum
-  const today = new Date().toLocaleDateString("de-DE");
-  const header = renderHeaderBlock(today);
-
-  // 2) Version-Updates, falls vorhanden
-  const versions = versionUpdates.length > 0
-    ? renderVersionBlocks(versionUpdates)
-    : [];
-
-  // 3) Statistik
+  // 1) Statistik berechnen
   const total = testResults.length;
   const success = testResults.filter((r) => r.success).length;
   const warnings =
     testResults.filter((r) => !r.success && !r.isCritical).length;
   const criticals = testResults.filter((r) => r.isCritical).length;
-  const stats = renderStatsBlock(total, success, warnings, criticals);
 
-  // 4) Alle fehlschlagenden Tests als Issue-Blocks
-  const failing = testResults.filter((r) => !r.success || r.isCritical);
+  // 2) Filter: alles, was Fehler oder Abweichungen hat
+  const failing = testResults.filter((r) =>
+    !r.success ||
+    r.isCritical ||
+    (r.missingFields.length > 0) ||
+    (r.extraFields.length > 0) ||
+    ((r.typeMismatches?.length ?? 0) > 0)
+  );
+
+  // 3) Blocks zusammenbauen
+  const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
+  const versions = versionUpdates.length > 0
+    ? renderVersionBlocks(versionUpdates)
+    : [];
+
+  // 3a) Issue-Blöcke mit eindeutigen Suffixen
   const issues = failing.flatMap((res) => {
     const suffix = res.endpointName.replace(/\s+/g, "_");
     return renderIssueBlocks([res]).map((blk) => {
@@ -54,18 +56,53 @@ export async function sendSlackReport(
     });
   });
 
-  // 5) Blocks zusammenfügen
+  const stats = renderStatsBlock(total, success, warnings, criticals);
+
+  // Reihenfolge: Header → Versionen → Issues → Statistik
   const blocks = [
     ...header,
     ...versions,
-    ...stats,
-    { type: "divider" },
     ...issues,
-    { type: "divider" },
+    ...stats,
   ];
 
-  // 6) Echte Slack-Nachricht senden
+  // 4) Raw-Blocks & Approvals initial in KV speichern
+  {
+    const { value: existing } = await kvInstance.get<Record<string, string>>([
+      "approvals",
+    ]);
+    const approvals = existing ?? {};
+    for (const res of failing) {
+      const key = res.endpointName.replace(/\s+/g, "_");
+      const raw = renderIssueBlocks([res]);
+      await kvInstance.set(["rawBlocks", key], raw);
+      approvals[key] = "pending";
+    }
+    await kvInstance.set(["approvals"], approvals);
+  }
+
+  // 5) Nachricht senden (oder nur Log, wenn dryRun)
   for (const { token, channel } of workspaces) {
+    if (options.dryRun) {
+      console.log("📋 [DryRun] channel:", channel);
+      console.log(
+        "📦 [DryRun] Payload:",
+        JSON.stringify(
+          blocks.length > 50
+            ? {
+              channel,
+              text: `API Testbericht: ${
+                warnings + criticals
+              } Abweichungen (insgesamt ${total}).`,
+            }
+            : { channel, text: "API Testbericht", blocks },
+          null,
+          2,
+        ),
+      );
+      continue;
+    }
+
     const payload = blocks.length > 50
       ? {
         channel,
