@@ -1,3 +1,5 @@
+// src/api-tester/core/slack/slackReporter/renderIssueBlocks.ts
+
 import type { Block } from "./renderHeaderBlock.ts";
 import type { TestResult } from "../../apiCaller.ts";
 
@@ -13,18 +15,18 @@ type Issue = Pick<
 
 export function renderIssueBlocks(issues: Issue[]): Block[] {
   return issues.flatMap((issue, index) => {
+    // Liste mit gekürzten Pfaden
     const missing = issue.missingFields.map((m) =>
       m.replace(/^data(\[0\])?\./, "")
     );
     const extra = issue.extraFields.map((e) =>
       e.replace(/^data(\[0\])?\./, "")
     );
-    const types = (issue.typeMismatches || []).map(
-      (m) =>
-        `• ${
-          m.path.replace(/^data(\[0\])?\./, "")
-        }: erwartet ${m.expected}, erhalten ${m.actual}`,
-    );
+    const types = (issue.typeMismatches || []).map((m) => ({
+      path: m.path.replace(/^data(\[0\])?\./, ""),
+      expected: m.expected,
+      actual: m.actual,
+    }));
     const icon = issue.isCritical ? "🔴" : "🟠";
 
     const blocks: Block[] = [
@@ -64,14 +66,25 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
         type: "context",
         elements: [{
           type: "mrkdwn",
-          text: `⚠️ *Typabweichungen:*\n${types.join("\n")}`,
+          text: "⚠️ *Typabweichungen:*\n" +
+            types.map((t) =>
+              `• ${t.path}: erwartet \`${t.expected}\`, erhalten \`${t.actual}\``
+            ).join("\n"),
         }],
       });
     }
 
-    // Buttons jetzt immer bei echten Abweichungen ODER kritischen Tests
+    // Buttons nur, wenn echte Abweichungen oder kritisch
     if (issue.isCritical || missing.length || extra.length || types.length) {
       const key = issue.endpointName.replace(/\s+/g, "_");
+      // payload mit allen Details
+      const payload = JSON.stringify({
+        endpointName: issue.endpointName,
+        method: issue.method,
+        missing,
+        extra,
+        typeMismatches: types,
+      });
       blocks.push(
         { type: "divider" },
         {
@@ -83,14 +96,14 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
               text: { type: "plain_text", text: "✅ Einverstanden" },
               style: "primary",
               action_id: "open_pin_modal",
-              value: key,
+              value: payload, // <-- hier kommt das JSON mit allen Diffs
             },
             {
               type: "button",
               text: { type: "plain_text", text: "⏸️ Warten" },
               style: "danger",
               action_id: "wait_action",
-              value: key,
+              value: payload, // <-- gleiches Payload
             },
           ],
         },
