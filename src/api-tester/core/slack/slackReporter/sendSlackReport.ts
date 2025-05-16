@@ -15,36 +15,40 @@ export interface VersionUpdate {
   expectedStructure?: string;
 }
 
+/**
+ * Sendet immer den echten Report an Slack (kein Dry-Run mehr).
+ */
 export async function sendSlackReport(
   testResults: TestResult[],
-  versionUpdates: VersionUpdate[] = [], // korrekt: leeres Array als Default
-  options: { dryRun?: boolean } = {}, // Optionen-Objekt, Default leer → dryRun=false
+  versionUpdates: VersionUpdate[] = [],
 ): Promise<void> {
   const workspaces = getSlackWorkspaces();
 
-  // 1) Statistik berechnen
+  // Statistik
   const total = testResults.length;
   const success = testResults.filter((r) => r.success).length;
-  const warnings =
-    testResults.filter((r) => !r.success && !r.isCritical).length;
+  const warnings = testResults.filter(
+    (r) =>
+      !r.success &&
+      !r.isCritical &&
+      r.expectedMissing !== true,
+  ).length;
   const criticals = testResults.filter((r) => r.isCritical).length;
 
-  // 2) Filter: alles, was Fehler oder Abweichungen hat
+  // Failing = echte Diff-Issues oder fehlende Datei
   const failing = testResults.filter((r) =>
-    !r.success ||
-    r.isCritical ||
-    (r.missingFields.length > 0) ||
-    (r.extraFields.length > 0) ||
-    ((r.typeMismatches?.length ?? 0) > 0)
+    r.expectedMissing === true ||
+    r.missingFields.length > 0 ||
+    r.extraFields.length > 0 ||
+    (r.typeMismatches.length > 0) ||
+    r.isCritical
   );
 
-  // 3) Blocks zusammenbauen
+  // Blocks bauen
   const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
   const versions = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
     : [];
-
-  // 3a) Issue-Blöcke mit eindeutigen Suffixen
   const issues = failing.flatMap((res) => {
     const suffix = res.endpointName.replace(/\s+/g, "_");
     return renderIssueBlocks([res]).map((blk) => {
@@ -55,18 +59,10 @@ export async function sendSlackReport(
       return b;
     });
   });
-
   const stats = renderStatsBlock(total, success, warnings, criticals);
+  const blocks = [...header, ...versions, ...issues, ...stats];
 
-  // Reihenfolge: Header → Versionen → Issues → Statistik
-  const blocks = [
-    ...header,
-    ...versions,
-    ...issues,
-    ...stats,
-  ];
-
-  // 4) Raw-Blocks & Approvals initial in KV speichern
+  // Raw-Blocks & Approvals in KV
   {
     const { value: existing } = await kvInstance.get<Record<string, string>>([
       "approvals",
@@ -81,28 +77,8 @@ export async function sendSlackReport(
     await kvInstance.set(["approvals"], approvals);
   }
 
-  // 5) Nachricht senden (oder nur Log, wenn dryRun)
+  // Nachricht an Slack senden
   for (const { token, channel } of workspaces) {
-    if (options.dryRun) {
-      console.log("📋 [DryRun] channel:", channel);
-      console.log(
-        "📦 [DryRun] Payload:",
-        JSON.stringify(
-          blocks.length > 50
-            ? {
-              channel,
-              text: `API Testbericht: ${
-                warnings + criticals
-              } Abweichungen (insgesamt ${total}).`,
-            }
-            : { channel, text: "API Testbericht", blocks },
-          null,
-          2,
-        ),
-      );
-      continue;
-    }
-
     const payload = blocks.length > 50
       ? {
         channel,
@@ -110,11 +86,7 @@ export async function sendSlackReport(
           warnings + criticals
         } Abweichungen (insgesamt ${total}).`,
       }
-      : {
-        channel,
-        text: "API Testbericht",
-        blocks,
-      };
+      : { channel, text: "API Testbericht", blocks };
 
     try {
       const resp = await axios.post(

@@ -20,6 +20,10 @@ export interface TestResult {
   extraFields: string[];
   typeMismatches: Array<{ path: string; expected: string; actual: string }>;
   updatedStructure: string | null;
+  /** Neuer Fall: Pfad zur erwarteten Datei */
+  expectedFile?: string;
+  /** Neuer Fall: true, wenn die Datei komplett fehlt */
+  expectedMissing?: boolean;
 }
 
 export interface Endpoint {
@@ -34,7 +38,6 @@ export interface Endpoint {
 
 function findExpectedPath(relativePath: string): string | null {
   const projectRoot = Deno.cwd();
-  // zwei mögliche Orte für 'expected/...'
   const candidates = [
     join(projectRoot, "src", "expected", relativePath),
     join(projectRoot, "src", "api-tester", "expected", relativePath),
@@ -152,20 +155,20 @@ export async function testEndpoint(
     );
     const expectedPath = findExpectedPath(expectedRelative);
     if (!expectedPath) {
-      const msg =
-        `Erwartete Datei nicht gefunden: ${endpoint.expectedStructure}`;
+      // Datei fehlt: eigenes Issue
       return {
         endpointName: endpoint.name,
         method: endpoint.method,
         success: false,
-        isCritical: true,
+        isCritical: false,
         statusCode: resp.status,
         errorMessage: null,
-        errorDetails: msg,
         missingFields: [],
         extraFields: [],
         typeMismatches: [],
         updatedStructure: null,
+        expectedFile: endpoint.expectedStructure,
+        expectedMissing: true,
       };
     }
 
@@ -178,11 +181,10 @@ export async function testEndpoint(
       extraFields.length > 0 ||
       typeMismatches.length > 0;
 
-    // 10) Automatisches Config‐Update bei Approval
+    // 10) Automatisches Config‐Update bei Approval (unverändert)
     let updatedStructure: string | null = null;
     if (hasDiff && config) {
-      // hier bleibt der gleiche Approval-Mechanismus
-      // ...
+      // … Euer Approval-Mechanismus
       updatedStructure = key;
     }
 
@@ -198,6 +200,8 @@ export async function testEndpoint(
       extraFields,
       typeMismatches,
       updatedStructure,
+      expectedFile: expectedPath,
+      expectedMissing: false,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
