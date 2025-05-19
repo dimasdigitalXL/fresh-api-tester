@@ -15,12 +15,11 @@ import config from "./fresh.config.ts";
 // --- Neu: importiere deine Test-Runner Funktion ---
 import { runAllTests } from "./run-tests.ts";
 
-// Cron-Job: führe alle 10 Minuten deine Tests aus.
-// Name = "run-tests-every-10", Schedule = "*/10 * * * *"
-
+// Cron-Job: führe deine Tests jede Stunde aus.
+// Name = "run-tests-every-hour", Schedule = "0 * * * *"
 Deno.cron(
   "run-tests-every-hour",
-  "*/10 * * * *",
+  "0 * * * *",
   async () => {
     console.log("⏰ [Cron] Starte API-Tests…");
     try {
