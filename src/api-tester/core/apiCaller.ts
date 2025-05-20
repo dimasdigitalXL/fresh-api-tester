@@ -7,6 +7,7 @@ import {
   fromFileUrl,
   join,
 } from "https://deno.land/std@0.216.0/path/mod.ts";
+import { kvInstance } from "./kv.ts";
 import { resolveProjectPath } from "./utils.ts";
 import { analyzeResponse } from "./structureAnalyzer.ts";
 
@@ -119,23 +120,38 @@ export async function testEndpoint(
 
     const actualData = resp.data;
 
-    // ---- 5) Tatsächliche Response speichern (nur warnen bei Fehler) ----
-    const responsesDir = join(__dirname, "../responses");
-    try {
-      await ensureDir(responsesDir);
-      const responseFile = join(responsesDir, `${endpoint.name}.json`);
-      await Deno.writeTextFile(
-        responseFile,
-        JSON.stringify(actualData, null, 2) + "\n",
-      );
-      console.info(
-        `✅ Response für "${endpoint.name}" gespeichert: ${responseFile}`,
-      );
-    } catch (err: unknown) {
-      const warnMsg = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `⚠️ Konnte Response für "${endpoint.name}" nicht speichern: ${warnMsg}`,
-      );
+    // ---- 5) Response speichern: KV auf Deploy, lokal ins FS ----
+    const isDeploy = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
+    if (isDeploy) {
+      // Auf Deno Deploy: in KV ablegen
+      try {
+        await kvInstance.set(["responses", endpoint.name], actualData);
+        console.info(`✅ [KV] Response für "${endpoint.name}" gespeichert.`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(
+          `❌ [KV] Konnte Response für "${endpoint.name}" nicht speichern: ${msg}`,
+        );
+      }
+    } else {
+      // Lokal: in src/api-tester/responses
+      const responsesDir = join(__dirname, "../responses");
+      try {
+        await ensureDir(responsesDir);
+        const file = join(responsesDir, `${endpoint.name}.json`);
+        await Deno.writeTextFile(
+          file,
+          JSON.stringify(actualData, null, 2) + "\n",
+        );
+        console.info(
+          `✅ [FS] Response für "${endpoint.name}" gespeichert: ${file}`,
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `⚠️ Konnte Response für "${endpoint.name}" nicht speichern: ${msg}`,
+        );
+      }
     }
 
     // ---- 6) HTTP-Fehler behandeln ----
@@ -212,7 +228,7 @@ export async function testEndpoint(
       extraFields.length > 0 ||
       typeMismatches.length > 0;
 
-    // ---- 10) Optional: Approval-Mechanismus (unverändert) ----
+    // ---- 10) Optional: Approval-Mechanismus ----
     let updatedStructure: string | null = null;
     if (hasDiff && config) {
       updatedStructure = key;

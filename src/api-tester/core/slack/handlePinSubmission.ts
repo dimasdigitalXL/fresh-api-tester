@@ -1,10 +1,12 @@
 // src/api-tester/core/slack/handlePinSubmission.ts
 
 import axios from "https://esm.sh/axios@1.4.0";
-// ① korrekter Import der Kv-Instanz
 import { kvInstance } from "../kv.ts";
 import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 import { getDisplayName } from "./getDisplayName.ts";
+import { saveUpdatedSchema } from "../structureAnalyzer.ts";
+import { resolveProjectPath } from "../utils.ts";
+import type { Schema } from "../types.ts";
 
 export interface SlackSubmissionPayload {
   view: {
@@ -62,13 +64,52 @@ export async function handlePinSubmission(
     return null;
   }
 
-  // 6) Approval-Status in KV speichern
+  // 6) Pending-Schema aus KV holen
+  let pendingSchema: Schema | undefined;
+  try {
+    const { value } = await kvInstance.get<Schema>([
+      "schema-update-pending",
+      key,
+    ]);
+    pendingSchema = value ?? undefined;
+    if (!pendingSchema) {
+      console.warn("⚠️ Kein pending-Entwurf für", key);
+    }
+  } catch (e) {
+    console.error("❌ Fehler beim Lesen des pending-Schemas:", e);
+  }
+
+  // 7) Offizielles Schema überschreiben
+  if (pendingSchema) {
+    // Pfad zur expected-Datei ermitteln
+    const fsPath = resolveProjectPath(
+      "src",
+      "api-tester",
+      "expected",
+      `${key}.json`,
+    );
+
+    try {
+      await saveUpdatedSchema(key, fsPath, pendingSchema);
+      console.log(`✅ Schema für "${key}" offiziell übernommen.`);
+    } catch (e) {
+      console.error("❌ Fehler beim Speichern des neuen Schemas:", e);
+    }
+
+    // pending-Entwurf löschen
+    try {
+      await kvInstance.delete(["schema-update-pending", key]);
+      console.log(`🗑️ pending-Schema für "${key}" gelöscht.`);
+    } catch (e) {
+      console.error("❌ Fehler beim Löschen des pending-Entwurfs:", e);
+    }
+  }
+
+  // 8) Approval-Status in KV speichern
   try {
     const { value: storedApprovals } = await kvInstance.get<
       Record<string, string>
-    >(
-      ["approvals"],
-    );
+    >(["approvals"]);
     const approvals = storedApprovals ?? {};
     approvals[key] = "approved";
     await kvInstance.set(["approvals"], approvals);
@@ -77,24 +118,28 @@ export async function handlePinSubmission(
     console.error("❌ Fehler beim Speichern der Approvals in KV:", e);
   }
 
-  // 7) Blocks aus KV lesen und Nachricht aktualisieren
-  console.log("🔧 Update Slack Nachricht für Endpoint:", endpoint);
+  // 9) Slack-Message updaten (Buttons entfernen, Freigabe anzeigen)
+  console.log("🔧 Update Slack Message für Endpoint:", endpoint);
   try {
     const { value: storedBlocks } = await kvInstance.get<
       Array<Record<string, unknown>>
     >(["rawBlocks", key]);
     const originalBlocks = storedBlocks ?? [];
 
-    // Decision-Buttons entfernen
+    // Entscheidungsknöpfe entfernen
     const cleaned = originalBlocks.filter((b) =>
-      b.block_id !== "decision_buttons"
+      typeof b.block_id !== "string" ||
+      !b.block_id.startsWith("decision_buttons_")
     );
-    // letzten Divider entfernen
-    if (cleaned.length > 0 && cleaned.at(-1)?.type === "divider") cleaned.pop();
 
-    // Bestätigungs-Abschnitt anhängen
+    // Letzten Divider entfernen
+    if (cleaned.length > 0 && cleaned.at(-1)?.type === "divider") {
+      cleaned.pop();
+    }
+
+    // Bestätigungsabschnitt anhängen
     const now = new Date().toLocaleTimeString("de-DE");
-    const newSection = [
+    const footer = [
       { type: "divider" },
       {
         type: "section",
@@ -105,9 +150,9 @@ export async function handlePinSubmission(
         text: { type: "mrkdwn", text: `✅ *Freigegeben durch ${userName}*` },
       },
     ];
-    const updatedBlocks = [...cleaned, ...newSection];
+    const updatedBlocks = [...cleaned, ...footer];
 
-    // Chat-Update
+    // Slack-Nachricht aktualisieren
     const resp = await axios.post(
       "https://slack.com/api/chat.update",
       {
@@ -125,22 +170,26 @@ export async function handlePinSubmission(
     );
     console.log("▶️ Slack API chat.update response:", resp.data);
 
-    // updatedBlocks zurück in KV
+    // Updated Blocks in KV zurückschreiben
     await kvInstance.set(["rawBlocks", key], updatedBlocks);
     console.log("✅ KV: rawBlocks updated für", key);
   } catch (e) {
     console.error("❌ Fehler beim Slack-Update:", e);
   }
 
-  // 8) Tests neu starten
-  const cmd = new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", "main.ts"],
-    cwd: Deno.cwd(),
-    env: { ...Deno.env.toObject(), SKIP_RESET_APPROVALS: "true" },
-  });
-  const child = cmd.spawn();
-  const status = await child.status;
-  console.log(`[api-tester] erneuter Durchlauf mit Exit-Code ${status.code}`);
+  // 10) Tests neu starten (optional)
+  try {
+    const cmd = new Deno.Command(Deno.execPath(), {
+      args: ["run", "-A", "main.ts"],
+      cwd: Deno.cwd(),
+      env: { ...Deno.env.toObject(), SKIP_RESET_APPROVALS: "true" },
+    });
+    const child = cmd.spawn();
+    const status = await child.status;
+    console.log(`[api-tester] erneuter Durchlauf mit Exit-Code ${status.code}`);
+  } catch (e) {
+    console.error("❌ Fehler beim Neustarten der Tests:", e);
+  }
 
   return null;
 }
