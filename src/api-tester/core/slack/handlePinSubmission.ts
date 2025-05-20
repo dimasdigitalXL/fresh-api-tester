@@ -4,9 +4,6 @@ import axios from "https://esm.sh/axios@1.4.0";
 import { kvInstance } from "../kv.ts";
 import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 import { getDisplayName } from "./getDisplayName.ts";
-import { saveUpdatedSchema } from "../structureAnalyzer.ts";
-import { resolveProjectPath } from "../utils.ts";
-import type { Schema } from "../types.ts";
 
 export interface SlackSubmissionPayload {
   view: {
@@ -20,6 +17,16 @@ export interface SlackSubmissionPayload {
   };
   user: { id: string };
 }
+
+// Struktur eines gespeicherten Approval‐Eintrags
+interface ApprovalEntry {
+  status: "approved" | "pending";
+  by: string;
+  at: string; // ISO‐Timestamp
+}
+
+// Map von Endpoint‐Keys auf ApprovalEntry oder noch alten String‐Status
+type ApprovalsMap = Record<string, ApprovalEntry | string>;
 
 export async function handlePinSubmission(
   payload: SlackSubmissionPayload,
@@ -64,95 +71,65 @@ export async function handlePinSubmission(
     return null;
   }
 
-  // 6) Pending-Schema aus KV holen
-  let pendingSchema: Schema | undefined;
+  // 6) Approval-Status in KV speichern (inkl. wer und wann)
   try {
-    const { value } = await kvInstance.get<Schema>([
-      "schema-update-pending",
-      key,
-    ]);
-    pendingSchema = value ?? undefined;
-    if (!pendingSchema) {
-      console.warn("⚠️ Kein pending-Entwurf für", key);
-    }
-  } catch (e) {
-    console.error("❌ Fehler beim Lesen des pending-Schemas:", e);
-  }
+    const { value: stored } = await kvInstance.get<ApprovalsMap>(["approvals"]);
+    const approvals: ApprovalsMap = stored ?? {};
 
-  // 7) Offizielles Schema überschreiben
-  if (pendingSchema) {
-    // Pfad zur expected-Datei ermitteln
-    const fsPath = resolveProjectPath(
-      "src",
-      "api-tester",
-      "expected",
-      `${key}.json`,
-    );
+    const now = new Date().toISOString();
+    approvals[key] = {
+      status: "approved",
+      by: userName,
+      at: now,
+    };
 
-    try {
-      await saveUpdatedSchema(key, fsPath, pendingSchema);
-      console.log(`✅ Schema für "${key}" offiziell übernommen.`);
-    } catch (e) {
-      console.error("❌ Fehler beim Speichern des neuen Schemas:", e);
-    }
-
-    // pending-Entwurf löschen
-    try {
-      await kvInstance.delete(["schema-update-pending", key]);
-      console.log(`🗑️ pending-Schema für "${key}" gelöscht.`);
-    } catch (e) {
-      console.error("❌ Fehler beim Löschen des pending-Entwurfs:", e);
-    }
-  }
-
-  // 8) Approval-Status in KV speichern
-  try {
-    const { value: storedApprovals } = await kvInstance.get<
-      Record<string, string>
-    >(["approvals"]);
-    const approvals = storedApprovals ?? {};
-    approvals[key] = "approved";
     await kvInstance.set(["approvals"], approvals);
-    console.log("✅ KV: approval status ‘approved’ für", key);
+    console.log(`✅ KV: Approval für ${key} gesetzt von ${userName} um ${now}`);
   } catch (e) {
     console.error("❌ Fehler beim Speichern der Approvals in KV:", e);
   }
 
-  // 9) Slack-Message updaten (Buttons entfernen, Freigabe anzeigen)
-  console.log("🔧 Update Slack Message für Endpoint:", endpoint);
+  // 7) Blocks aus KV lesen und Slack-Nachricht updaten
   try {
     const { value: storedBlocks } = await kvInstance.get<
       Array<Record<string, unknown>>
     >(["rawBlocks", key]);
     const originalBlocks = storedBlocks ?? [];
 
-    // Entscheidungsknöpfe entfernen
-    const cleaned = originalBlocks.filter((b) =>
-      typeof b.block_id !== "string" ||
-      !b.block_id.startsWith("decision_buttons_")
-    );
+    // Decision-Buttons entfernen (block_id beginnt mit "decision_buttons")
+    const cleaned = originalBlocks.filter((b) => {
+      const bid = typeof b.block_id === "string" ? b.block_id : "";
+      return !bid.startsWith("decision_buttons");
+    });
 
-    // Letzten Divider entfernen
+    // letzten Divider entfernen, falls vorhanden
     if (cleaned.length > 0 && cleaned.at(-1)?.type === "divider") {
       cleaned.pop();
     }
 
-    // Bestätigungsabschnitt anhängen
-    const now = new Date().toLocaleTimeString("de-DE");
+    // Bestätigungs‐Abschnitt anhängen
+    const time = new Date().toLocaleTimeString("de-DE");
     const footer = [
-      { type: "divider" },
+      { type: "divider" as const },
       {
-        type: "section",
-        text: { type: "mrkdwn", text: `_AKTUALISIERT_ • ${now}` },
+        type: "section" as const,
+        text: {
+          type: "mrkdwn" as const,
+          text: `_AKTUALISIERT_ • ${time}`,
+        },
       },
       {
-        type: "section",
-        text: { type: "mrkdwn", text: `✅ *Freigegeben durch ${userName}*` },
+        type: "section" as const,
+        text: {
+          type: "mrkdwn" as const,
+          text: `✅ *Freigegeben durch ${userName}*`,
+        },
       },
     ];
+
     const updatedBlocks = [...cleaned, ...footer];
 
-    // Slack-Nachricht aktualisieren
+    // Nachricht mit chat.update aktualisieren
     const resp = await axios.post(
       "https://slack.com/api/chat.update",
       {
@@ -170,14 +147,14 @@ export async function handlePinSubmission(
     );
     console.log("▶️ Slack API chat.update response:", resp.data);
 
-    // Updated Blocks in KV zurückschreiben
+    // aktualisierte Blocks zurück in KV
     await kvInstance.set(["rawBlocks", key], updatedBlocks);
     console.log("✅ KV: rawBlocks updated für", key);
   } catch (e) {
     console.error("❌ Fehler beim Slack-Update:", e);
   }
 
-  // 10) Tests neu starten (optional)
+  // 8) Tests neu starten (SKIP_RESET_APPROVALS aktivieren)
   try {
     const cmd = new Deno.Command(Deno.execPath(), {
       args: ["run", "-A", "main.ts"],
@@ -186,7 +163,7 @@ export async function handlePinSubmission(
     });
     const child = cmd.spawn();
     const status = await child.status;
-    console.log(`[api-tester] erneuter Durchlauf mit Exit-Code ${status.code}`);
+    console.log(`[api-tester] Erneuter Durchlauf mit Exit-Code ${status.code}`);
   } catch (e) {
     console.error("❌ Fehler beim Neustarten der Tests:", e);
   }
