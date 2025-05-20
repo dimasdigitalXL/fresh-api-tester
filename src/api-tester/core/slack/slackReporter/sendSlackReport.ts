@@ -9,46 +9,55 @@ import { renderIssueBlocks } from "./renderIssueBlocks.ts";
 import { renderStatsBlock } from "./renderStatsBlock.ts";
 import type { TestResult } from "../../apiCaller.ts";
 
+/** Version-Updates, die im Report angezeigt werden können */
 export interface VersionUpdate {
   name: string;
   url: string;
   expectedStructure?: string;
 }
 
+// Maximal 50 Blocks pro Slack-Message
+const MAX_BLOCKS_PER_MESSAGE = 50;
+
+// Hilfsfunktion: Array in Stücke aufteilen
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
 export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: VersionUpdate[] = [],
 ): Promise<void> {
-  const workspaces = getSlackWorkspaces();
+  // 1) Nur echte Schema-Issues
+  const schemaIssues = testResults.filter((r) =>
+    r.expectedMissing ||
+    r.missingFields.length > 0 ||
+    r.extraFields.length > 0 ||
+    r.typeMismatches.length > 0
+  );
 
-  // 1) Statistik berechnen
-  const total = testResults.length;
-  const success = testResults.filter((r) => r.success).length;
-  const warnings =
-    testResults.filter((r) => !r.success && !r.isCritical).length;
-  const criticals = testResults.filter((r) => r.isCritical).length;
-
-  // 2) Blocks zusammenbauen
-  const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
-  const versions = versionUpdates.length > 0
+  // 2) Bausteine für Nachricht
+  const headerBlocks = renderHeaderBlock(
+    new Date().toLocaleDateString("de-DE"),
+  );
+  const versionBlocks = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
     : [];
-  const failing = testResults.filter((r) => !r.success || r.isCritical);
-
-  // Wenn eine erwartete Datei komplett fehlt, wollen wir das gesondert melden
-  const missingSchemaBlocks = failing
+  const missingSchemaBlocks = schemaIssues
     .filter((r) => r.expectedMissing)
     .map((r) => ({
-      type: "section",
+      type: "section" as const,
       text: {
-        type: "mrkdwn",
+        type: "mrkdwn" as const,
         text:
-          `:warning: Erwartete Schema-Datei *${r.expectedFile}* für Endpoint *${r.endpointName}* fehlt.`,
+          `:warning: Erwartetes Schema *${r.expectedFile}* für Endpoint *${r.endpointName}* fehlt.`,
       },
     }));
-
-  // und für alle anderen Issues die regulären Issue-Blocks
-  const issueBlocks = failing
+  const issueBlocks = schemaIssues
     .filter((r) => !r.expectedMissing)
     .flatMap((res) => {
       const suffix = res.endpointName.replace(/\s+/g, "_");
@@ -60,23 +69,30 @@ export async function sendSlackReport(
         return b;
       });
     });
+  const statsBlocks = renderStatsBlock(
+    testResults.length,
+    testResults.length - schemaIssues.length,
+    0,
+    schemaIssues.length,
+  );
 
-  const stats = renderStatsBlock(total, success, warnings, criticals);
-  const blocks = [
-    ...header,
-    ...versions,
-    ...missingSchemaBlocks,
-    ...issueBlocks,
-    ...stats,
-  ];
+  // 3) Blocks chunken
+  const bodyBlocks = [...missingSchemaBlocks, ...issueBlocks];
+  const headerCount = headerBlocks.length + versionBlocks.length;
+  const footerCount = statsBlocks.length;
+  const maxPerChunk = Math.max(
+    1,
+    MAX_BLOCKS_PER_MESSAGE - headerCount - footerCount,
+  );
+  const issueChunks = chunkArray(bodyBlocks, maxPerChunk);
 
-  // 3) Raw-Blocks & Approvals initial in KV speichern
+  // 4) Approvals in KV speichern
   {
     const { value: existing } = await kvInstance.get<Record<string, string>>([
       "approvals",
     ]);
     const approvals = existing ?? {};
-    for (const res of failing) {
+    for (const res of schemaIssues) {
       const key = res.endpointName.replace(/\s+/g, "_");
       const raw = renderIssueBlocks([res]);
       await kvInstance.set(["rawBlocks", key], raw);
@@ -85,35 +101,61 @@ export async function sendSlackReport(
     await kvInstance.set(["approvals"], approvals);
   }
 
-  // 4) Nachricht an alle konfigurierten Workspaces schicken
+  // 5) Nachrichten senden
+  const workspaces = getSlackWorkspaces();
   for (const { token, channel } of workspaces) {
-    const payload = blocks.length > 50
-      ? {
-        channel,
-        text: `API Testbericht: ${
-          warnings + criticals
-        } Abweichungen (insgesamt ${total}).`,
-      }
-      : {
-        channel,
-        text: "API Testbericht",
-        blocks,
-      };
-
-    try {
-      const resp = await axios.post(
-        "https://slack.com/api/chat.postMessage",
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+    // a) Mehrere Nachrichten, falls nötig
+    for (let i = 0; i < issueChunks.length; i++) {
+      const blocks = [
+        ...(i === 0 ? headerBlocks : []),
+        ...(i === 0 ? versionBlocks : []),
+        ...issueChunks[i],
+        ...(i === issueChunks.length - 1 ? statsBlocks : []),
+      ];
+      try {
+        const resp = await axios.post(
+          "https://slack.com/api/chat.postMessage",
+          {
+            channel,
+            text: `API Testbericht – Seite ${i + 1}/${issueChunks.length}`,
+            blocks,
           },
-        },
-      );
-      console.log("▶️ Slack API chat.postMessage response:", resp.data);
-    } catch (err) {
-      console.error("❌ Fehler beim Senden an Slack:", err);
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+        console.log("▶️ Slack chat.postMessage:", resp.data);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error("❌ Fehler beim Senden an Slack:", errMsg);
+      }
+    }
+
+    // b) Wenn keine SchemaIssues existieren
+    if (issueChunks.length === 0) {
+      try {
+        const resp = await axios.post(
+          "https://slack.com/api/chat.postMessage",
+          {
+            channel,
+            text: "API Testbericht – keine Schema-Abweichungen",
+            blocks: [...headerBlocks, ...versionBlocks, ...statsBlocks],
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+        console.log("▶️ Slack chat.postMessage (no issues):", resp.data);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error("❌ Fehler beim Senden an Slack (no issues):", errMsg);
+      }
     }
   }
 

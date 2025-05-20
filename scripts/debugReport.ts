@@ -1,9 +1,11 @@
 // scripts/debugReport.ts
 
 import "https://deno.land/std@0.216.0/dotenv/load.ts";
-import { sendSlackReport } from "../src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
+import {
+  sendSlackReport,
+  VersionUpdate,
+} from "../src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
 import type { TestResult } from "../src/api-tester/core/apiCaller.ts";
-import type { VersionUpdate } from "../src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
 
 const fakeResults: TestResult[] = [
   {
@@ -24,7 +26,7 @@ const fakeResults: TestResult[] = [
   },
 ];
 
-// explicit type annotation hier:
+// benutze das nun exportierte Interface
 const fakeVersions: VersionUpdate[] = [];
 
 await sendSlackReport(fakeResults, fakeVersions);
