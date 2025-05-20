@@ -1,42 +1,17 @@
 // src/api-tester/core/resetApprovals.ts
 
-import { resolveProjectPath } from "./utils.ts";
+import { kvInstance } from "./kv.ts";
 
 /**
- * Setzt nur die approval-Status zurück,
- * bewahrt jedoch den gecachten Block-Array unter __rawBlocks.
+ * Löscht den kompletten approvals-Eintrag in Deno KV,
+ * sodass alle Endpoints wieder neutral stehen.
  */
-export async function resetApprovals(): Promise<void> {
-  // Pfad zu pending-approvals.json im Projekt
-  const approvalsFile = resolveProjectPath(
-    "api-tester",
-    "pending-approvals.json",
-  );
-
+export async function resetApprovalsKV(): Promise<void> {
   try {
-    // Datei einlesen und parsen
-    const raw = await Deno.readTextFile(approvalsFile);
-    const approvals = JSON.parse(raw) as Record<string, unknown>;
-
-    // Block-Cache beibehalten
-    const rawBlocks = approvals["__rawBlocks"] ?? {};
-
-    // Neues Objekt erzeugen: __rawBlocks + alle Keys auf "waiting"
-    const newApprovals: Record<string, unknown> = { __rawBlocks: rawBlocks };
-    for (const key of Object.keys(approvals)) {
-      if (key === "__rawBlocks") continue;
-      newApprovals[key] = "waiting";
-    }
-
-    // Zurückschreiben
-    const out = JSON.stringify(newApprovals, null, 2);
-    await Deno.writeTextFile(approvalsFile, out);
-
-    console.log("🔄 Reset der bisherigen Freigaben (resetApprovals)");
-  } catch (_err) {
-    // Wenn die Datei fehlt oder nicht gelesen werden kann
-    console.warn(
-      "⚠️ pending-approvals.json nicht gefunden oder nicht lesbar – übersprungen.",
-    );
+    await kvInstance.set(["approvals"], {});
+    console.log("✅ Alle approvals in KV zurückgesetzt.");
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`❌ Konnte approvals in KV nicht zurücksetzen: ${msg}`);
   }
 }
