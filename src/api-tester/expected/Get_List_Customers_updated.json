@@ -30,10 +30,8 @@
       "salesManager": {
         "id": "string"
       },
-      "lead": {
-        "isLead": false,
-        "status": "string"
-      }
+      "isLead": false,
+      "contactPerson": "string"
     },
     {
       "id": "string",
@@ -68,10 +66,8 @@
       "salesManager": {
         "id": "string"
       },
-      "lead": {
-        "isLead": false,
-        "status": "string"
-      }
+      "isLead": false,
+      "contactPerson": "string"
     },
     {
       "id": "string",
@@ -101,10 +97,8 @@
       },
       "accountManager": null,
       "salesManager": null,
-      "lead": {
-        "isLead": false,
-        "status": "string"
-      }
+      "isLead": false,
+      "contactPerson": "string"
     },
     {
       "id": "string",
@@ -136,10 +130,8 @@
       "salesManager": {
         "id": "string"
       },
-      "lead": {
-        "isLead": false,
-        "status": "string"
-      }
+      "isLead": false,
+      "contactPerson": "string"
     },
     {
       "id": "string",
@@ -171,10 +163,8 @@
       "salesManager": {
         "id": "string"
       },
-      "lead": {
-        "isLead": false,
-        "status": "string"
-      }
+      "isLead": false,
+      "contactPerson": "string"
     },
     {
       "id": "string",
@@ -206,10 +196,8 @@
       "salesManager": {
         "id": "string"
       },
-      "lead": {
-        "isLead": false,
-        "status": "string"
-      }
+      "isLead": false,
+      "contactPerson": "string"
     },
     {
       "id": "string",
@@ -239,10 +227,8 @@
       },
       "accountManager": null,
       "salesManager": null,
-      "lead": {
-        "isLead": false,
-        "status": null
-      }
+      "isLead": false,
+      "contactPerson": "string"
     },
     {
       "id": "string",
@@ -397,10 +383,8 @@
       "salesManager": {
         "id": "string"
       },
-      "lead": {
-        "isLead": false,
-        "status": "string"
-      }
+      "isLead": false,
+      "contactPerson": "string"
     },
     {
       "id": "string",
@@ -432,10 +416,8 @@
       "salesManager": {
         "id": "string"
       },
-      "lead": {
-        "isLead": false,
-        "status": "string"
-      }
+      "isLead": false,
+      "contactPerson": "string"
     },
     {
       "id": "string",
@@ -467,10 +449,8 @@
       "salesManager": {
         "id": "string"
       },
-      "lead": {
-        "isLead": false,
-        "status": "string"
-      }
+      "isLead": false,
+      "contactPerson": "string"
     }
   ],
   "extra": {

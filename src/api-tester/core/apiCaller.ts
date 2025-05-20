@@ -1,10 +1,16 @@
 // src/api-tester/core/apiCaller.ts
 
 import axios from "https://esm.sh/axios@1.4.0";
-import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
-import { join } from "https://deno.land/std@0.216.0/path/mod.ts";
+import { ensureDir, existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
+import {
+  dirname,
+  fromFileUrl,
+  join,
+} from "https://deno.land/std@0.216.0/path/mod.ts";
 import { resolveProjectPath } from "./utils.ts";
 import { analyzeResponse } from "./structureAnalyzer.ts";
+
+const __dirname = dirname(fromFileUrl(import.meta.url));
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -20,10 +26,10 @@ export interface TestResult {
   extraFields: string[];
   typeMismatches: Array<{ path: string; expected: string; actual: string }>;
   updatedStructure: string | null;
-  /** Neuer Fall: Pfad zur erwarteten Datei */
   expectedFile?: string;
-  /** Neuer Fall: true, wenn die Datei komplett fehlt */
   expectedMissing?: boolean;
+  expectedData?: unknown;
+  actualData: unknown;
 }
 
 export interface Endpoint {
@@ -112,7 +118,20 @@ export async function testEndpoint(
       validateStatus: () => true,
     });
 
-    // 6) HTTP‐Fehler behandeln
+    // 6) Tatsächliche Response speichern
+    const actualData = resp.data;
+    const responsesDir = join(__dirname, "../responses");
+    await ensureDir(responsesDir);
+    const responsePath = join(responsesDir, `${endpoint.name}.json`);
+    await Deno.writeTextFile(
+      responsePath,
+      JSON.stringify(actualData, null, 2) + "\n",
+    );
+    console.info(
+      `✅ Actual response für "${endpoint.name}" gespeichert: ${responsePath}`,
+    );
+
+    // 7) HTTP‐Fehler behandeln
     if (resp.status < 200 || resp.status >= 300) {
       const msg = `HTTP ${resp.status} (${resp.statusText || "Error"})`;
       console.error(`❌ API‐Fehler für ${endpoint.name}:`, msg);
@@ -128,11 +147,12 @@ export async function testEndpoint(
         extraFields: [],
         typeMismatches: [],
         updatedStructure: null,
+        actualData,
       };
     }
     console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
 
-    // 7) Ohne erwartetes Schema sofort OK
+    // 8) Ohne erwartetes Schema sofort OK
     if (!endpoint.expectedStructure) {
       return {
         endpointName: endpoint.name,
@@ -145,17 +165,19 @@ export async function testEndpoint(
         extraFields: [],
         typeMismatches: [],
         updatedStructure: null,
+        actualData,
       };
     }
 
-    // 8) Erwartetes Schema finden
+    // 9) Erwartetes Schema finden
     const expectedRelative = endpoint.expectedStructure.replace(
       /^expected\/+/,
       "",
     );
     const expectedPath = findExpectedPath(expectedRelative);
+
     if (!expectedPath) {
-      // Datei fehlt: eigenes Issue
+      // Datei fehlt: eigenes Issue, aber mit actualData
       return {
         endpointName: endpoint.name,
         method: endpoint.method,
@@ -169,26 +191,31 @@ export async function testEndpoint(
         updatedStructure: null,
         expectedFile: endpoint.expectedStructure,
         expectedMissing: true,
+        actualData,
       };
     }
 
-    // 9) Schema‐Vergleich per analyzeResponse
+    // 10) erwartetes JSON laden
+    const expectedText = await Deno.readTextFile(expectedPath);
+    const expectedData = JSON.parse(expectedText);
+
+    // 11) Schema‐Vergleich per analyzeResponse
     const key = endpoint.name.replace(/\s+/g, "_");
     const { missingFields, extraFields, typeMismatches } =
-      await analyzeResponse(key, expectedPath, resp.data ?? {});
+      await analyzeResponse(key, expectedPath, actualData ?? {});
 
     const hasDiff = missingFields.length > 0 ||
       extraFields.length > 0 ||
       typeMismatches.length > 0;
 
-    // 10) Automatisches Config‐Update bei Approval (unverändert)
+    // 12) Automatisches Config‐Update bei Approval (unverändert)
     let updatedStructure: string | null = null;
     if (hasDiff && config) {
       // … Euer Approval-Mechanismus
       updatedStructure = key;
     }
 
-    // 11) Ergebnis zurückgeben
+    // 13) Ergebnis zurückgeben (jetzt mit expectedData)
     return {
       endpointName: endpoint.name,
       method: endpoint.method,
@@ -202,6 +229,8 @@ export async function testEndpoint(
       updatedStructure,
       expectedFile: expectedPath,
       expectedMissing: false,
+      expectedData,
+      actualData,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -218,6 +247,7 @@ export async function testEndpoint(
       extraFields: [],
       typeMismatches: [],
       updatedStructure: null,
+      actualData: err,
     };
   }
 }

@@ -3,6 +3,7 @@
     "id": "440",
     "uuid": "",
     "number": "16",
+    "deviatingCustomerNumber": "",
     "customerType": "person",
     "name": "DimasTest",
     "firstname": "",
@@ -29,10 +30,8 @@
     },
     "accountManager": null,
     "salesManager": null,
-    "lead": {
-      "isLead": false,
-      "status": ""
-    }
+    "isLead": false,
+    "contactPerson": ""
   },
   "links": {
     "self": "https://636a1d639f14e.xentral.biz/api/v2/customers/440",

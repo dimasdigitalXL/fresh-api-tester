@@ -1,0 +1,39 @@
+{
+  "data": {
+    "id": "1",
+    "date": "2023-01-23",
+    "documentNumber": "500001",
+    "progress": "done",
+    "shippingMethod": {
+      "id": 1,
+      "name": "DHL"
+    },
+    "project": {
+      "id": 1,
+      "name": "Standard Projekt"
+    },
+    "status": "completed",
+    "bodyOutroduction": "",
+    "internalComment": "",
+    "salesOrder": {
+      "id": "19"
+    },
+    "positions": [
+      {
+        "id": "1",
+        "salesOrderPosition": {
+          "id": "2"
+        },
+        "product": {
+          "id": "89",
+          "number": "700001",
+          "name": "Schraube M10x20"
+        },
+        "quantity": 3,
+        "returnReason": {
+          "designation": "14 Tage Rückgaberecht"
+        }
+      }
+    ]
+  }
+}

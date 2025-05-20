@@ -4,6 +4,7 @@
       "id": "5",
       "uuid": "",
       "number": "10002",
+      "deviatingCustomerNumber": "666",
       "customerType": "person",
       "name": "Kassen Mitarbeiter",
       "firstname": "",
@@ -29,15 +30,14 @@
       "salesManager": {
         "id": "1"
       },
-      "lead": {
-        "isLead": false,
-        "status": ""
-      }
+      "isLead": false,
+      "contactPerson": ""
     },
     {
       "id": "7",
       "uuid": "",
       "number": "10003",
+      "deviatingCustomerNumber": "78888",
       "customerType": "person",
       "name": "Testkunde ABC",
       "firstname": "",
@@ -66,21 +66,20 @@
       "salesManager": {
         "id": "5"
       },
-      "lead": {
-        "isLead": false,
-        "status": ""
-      }
+      "isLead": false,
+      "contactPerson": ""
     },
     {
       "id": "8",
       "uuid": "",
       "number": "10004",
+      "deviatingCustomerNumber": "123",
       "customerType": "person",
       "name": "Christian Hofmann",
       "firstname": "",
       "lastname": "",
       "title": "",
-      "salutation": "other",
+      "salutation": "mr",
       "birthdate": null,
       "department": "",
       "subDepartment": "",
@@ -98,15 +97,14 @@
       },
       "accountManager": null,
       "salesManager": null,
-      "lead": {
-        "isLead": false,
-        "status": ""
-      }
+      "isLead": false,
+      "contactPerson": ""
     },
     {
       "id": "9",
       "uuid": "",
       "number": "10023",
+      "deviatingCustomerNumber": "777",
       "customerType": "person",
       "name": "EDI Testkunde Pascal mit GLN 4304768000002",
       "firstname": "",
@@ -132,15 +130,14 @@
       "salesManager": {
         "id": "1"
       },
-      "lead": {
-        "isLead": false,
-        "status": ""
-      }
+      "isLead": false,
+      "contactPerson": ""
     },
     {
       "id": "13",
       "uuid": "",
       "number": "10005",
+      "deviatingCustomerNumber": "777",
       "customerType": "person",
       "name": "Kunde AT",
       "firstname": "",
@@ -166,15 +163,14 @@
       "salesManager": {
         "id": "1"
       },
-      "lead": {
-        "isLead": false,
-        "status": ""
-      }
+      "isLead": false,
+      "contactPerson": ""
     },
     {
       "id": "14",
       "uuid": "",
       "number": "10006",
+      "deviatingCustomerNumber": "",
       "customerType": "person",
       "name": "Kunde mit US$ Währung",
       "firstname": "",
@@ -200,15 +196,14 @@
       "salesManager": {
         "id": "5"
       },
-      "lead": {
-        "isLead": false,
-        "status": ""
-      }
+      "isLead": false,
+      "contactPerson": ""
     },
     {
       "id": "15",
       "uuid": "",
       "number": "10007",
+      "deviatingCustomerNumber": "666",
       "customerType": "person",
       "name": "Lawn Care",
       "firstname": "",
@@ -232,15 +227,14 @@
       },
       "accountManager": null,
       "salesManager": null,
-      "lead": {
-        "isLead": false,
-        "status": null
-      }
+      "isLead": false,
+      "contactPerson": "Patrick Raschle"
     },
     {
       "id": "17",
       "uuid": "",
       "number": "10008",
+      "deviatingCustomerNumber": "78888",
       "customerType": "person",
       "name": "Ricki",
       "firstname": "",
@@ -389,15 +383,14 @@
       "salesManager": {
         "id": "1"
       },
-      "lead": {
-        "isLead": false,
-        "status": ""
-      }
+      "isLead": false,
+      "contactPerson": ""
     },
     {
       "id": "18",
       "uuid": "",
       "number": "19329",
+      "deviatingCustomerNumber": "777",
       "customerType": "company",
       "name": "T4D",
       "firstname": "",
@@ -423,15 +416,14 @@
       "salesManager": {
         "id": "1"
       },
-      "lead": {
-        "isLead": false,
-        "status": ""
-      }
+      "isLead": false,
+      "contactPerson": ""
     },
     {
       "id": "19",
       "uuid": "",
       "number": "10009",
+      "deviatingCustomerNumber": "",
       "customerType": "person",
       "name": "Laufkundschaft",
       "firstname": "",
@@ -457,14 +449,12 @@
       "salesManager": {
         "id": "1"
       },
-      "lead": {
-        "isLead": false,
-        "status": ""
-      }
+      "isLead": false,
+      "contactPerson": ""
     }
   ],
   "extra": {
-    "totalCount": 252,
+    "totalCount": 256,
     "page": {
       "number": 1,
       "size": 10

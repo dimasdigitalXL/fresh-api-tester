@@ -36,6 +36,7 @@
           "id": "13"
         },
         "currency": "EUR",
+        "costCenter": null,
         "billingAddress": {
           "name": "DimasTest",
           "department": "",
@@ -70,6 +71,8 @@
         "shippingMethod": {
           "id": "1"
         },
+        "preferredWarehouse": null,
+        "storageCountry": null,
         "shippingAddress": {
           "name": "DimasTest",
           "department": "",

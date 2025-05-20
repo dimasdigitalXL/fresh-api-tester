@@ -1,0 +1,71 @@
+{
+  "data": {
+    "id": "1",
+    "number": "900000",
+    "date": "2023-01-23",
+    "createdAt": "2023-01-23T11:02:56+01:00",
+    "createdBy": {
+      "name": "Kassen Mitarbeiter"
+    },
+    "sentAt": null,
+    "sentBy": null,
+    "updatedAt": "2023-04-26T16:40:36+02:00",
+    "grossValue": {
+      "amount": "48.20",
+      "currency": "EUR"
+    },
+    "netValue": {
+      "amount": "40.50",
+      "currency": "EUR"
+    },
+    "costCenter": "",
+    "status": "approved",
+    "tags": [],
+    "project": {
+      "id": "1",
+      "name": "Standard Projekt"
+    },
+    "customer": {
+      "id": "8",
+      "name": "Test Kunde"
+    },
+    "externalOrderReference": "10035",
+    "devCustomer": "",
+    "billingAddress": {
+      "name": "Test Kunde",
+      "contactPerson": "",
+      "department": "",
+      "subdivision": "",
+      "street": "Werner-von-Siemens-Straße 6",
+      "additionalDetails": "Gebäude 15 L",
+      "city": "Augsburg",
+      "zipCode": "86159",
+      "country": "DE"
+    },
+    "paymentMethodName": "payment_in_advance",
+    "paymentStatus": "unknown",
+    "gln": "",
+    "taxation": 0,
+    "positions": [
+      {
+        "id": 1,
+        "position": 1,
+        "salesOrderPosition": {
+          "id": "2"
+        },
+        "createdAt": "2023-01-31T10:49:08+01:00",
+        "productId": 89,
+        "productNumber": "700001",
+        "description": "Schraube M10x20",
+        "quantity": 3,
+        "price": {
+          "amount": "15.00000000",
+          "currency": "EUR"
+        },
+        "vatCategory": "",
+        "taxRate": -1,
+        "discount": 10
+      }
+    ]
+  }
+}

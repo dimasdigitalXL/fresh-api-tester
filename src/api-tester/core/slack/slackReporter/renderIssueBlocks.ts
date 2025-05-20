@@ -11,36 +11,19 @@ type Issue = Pick<
   | "extraFields"
   | "typeMismatches"
   | "isCritical"
-  | "expectedFile"
   | "expectedMissing"
+  | "expectedFile"
 >;
 
 export function renderIssueBlocks(issues: Issue[]): Block[] {
   return issues.flatMap((issue, index) => {
-    // 1) Eigener Block für fehlende Expected-Datei
-    if (issue.expectedMissing) {
-      return [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `*${
-              index + 1
-            }️⃣ ${issue.endpointName}* ❌ Erwartete Datei nicht gefunden:\n\`${issue.expectedFile}\``,
-          },
-        },
-        { type: "divider" },
-      ];
-    }
-
-    // 2) Struktur-Abweichungen
     const missing = issue.missingFields.map((m) =>
       m.replace(/^data(\[0\])?\./, "")
     );
     const extra = issue.extraFields.map((e) =>
       e.replace(/^data(\[0\])?\./, "")
     );
-    const types = issue.typeMismatches.map(
+    const types = (issue.typeMismatches || []).map(
       (m) =>
         `• ${
           m.path.replace(/^data(\[0\])?\./, "")
@@ -60,40 +43,54 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
       },
     ];
 
-    if (missing.length) {
+    // Spezialfall: erwartete Datei fehlt
+    if (issue.expectedMissing) {
       blocks.push({
         type: "context",
         elements: [{
           type: "mrkdwn",
-          text: `❌ Fehlende Felder: ${missing.join(", ")}`,
+          text: `❌ Erwartete Datei nicht gefunden: \`${issue.expectedFile}\``,
         }],
       });
-    }
-    if (extra.length) {
-      blocks.push({
-        type: "context",
-        elements: [{
-          type: "mrkdwn",
-          text: `➕ Neue Felder: ${extra.join(", ")}`,
-        }],
-      });
-    }
-    if (types.length) {
-      blocks.push({
-        type: "context",
-        elements: [{
-          type: "mrkdwn",
-          text: `⚠️ *Typ-Abweichungen:*\n${types.join("\n")}`,
-        }],
-      });
+    } else {
+      if (missing.length) {
+        blocks.push({
+          type: "context",
+          elements: [{
+            type: "mrkdwn",
+            text: `❌ Fehlende Felder: ${missing.join(", ")}`,
+          }],
+        });
+      }
+
+      if (extra.length) {
+        blocks.push({
+          type: "context",
+          elements: [{
+            type: "mrkdwn",
+            text: `➕ Neue Felder: ${extra.join(", ")}`,
+          }],
+        });
+      }
+
+      if (types.length) {
+        blocks.push({
+          type: "context",
+          elements: [{
+            type: "mrkdwn",
+            text: `⚠️ *Typabweichungen:*\n${types.join("\n")}`,
+          }],
+        });
+      }
     }
 
-    // Buttons nur bei echten Abweichungen oder kritischen Tests
+    // Buttons falls nötig
     if (
+      issue.expectedMissing ||
       issue.isCritical ||
-      missing.length > 0 ||
-      extra.length > 0 ||
-      types.length > 0
+      missing.length ||
+      extra.length ||
+      types.length
     ) {
       const key = issue.endpointName.replace(/\s+/g, "_");
       blocks.push(

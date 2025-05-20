@@ -1,0 +1,321 @@
+{
+  "data": {
+    "id": "19",
+    "documentNumber": "200000",
+    "externalOrderNumber": "10035",
+    "customerOrderNumber": "",
+    "transactionNumber": "",
+    "externalOrderId": "4503c227e47d43f5895c7447eeeb44f4",
+    "autoCreateDocuments": "deliveryNote+invoice",
+    "date": "2023-01-23",
+    "earliestFulfillmentDate": null,
+    "desiredDeliveryDate": null,
+    "desiredDeliveryDateCw": false,
+    "reservationDate": null,
+    "editor": "Kassen Mitarbeiter",
+    "sales": {
+      "id": null,
+      "name": null
+    },
+    "status": "completed",
+    "customer": {
+      "id": "8",
+      "number": "10004"
+    },
+    "comment": "",
+    "project": {
+      "id": "1"
+    },
+    "bodyOutroduction": "",
+    "bodyIntroduction": "",
+    "internalDesignation": "",
+    "language": {
+      "iso2": "DE"
+    },
+    "financials": {
+      "paymentMethod": {
+        "id": "11"
+      },
+      "currency": "EUR",
+      "costCenter": null,
+      "billingAddress": {
+        "name": "Test Kunde",
+        "department": "",
+        "subDepartment": "",
+        "street": "Werner-von-Siemens-Straße 6",
+        "zipCode": "86159",
+        "city": "Augsburg",
+        "state": "BY",
+        "country": "DE",
+        "type": "herr",
+        "title": "",
+        "contactPerson": "",
+        "addressSupplement": "Gebäude 15 L",
+        "fax": "",
+        "email": "christian@digitalxl.de",
+        "salutation": "",
+        "gln": "",
+        "phoneNumber": ""
+      },
+      "paymentTerms": {
+        "paymentTargetDiscount": 0,
+        "paymentTargetDays": 14,
+        "paymentTargetDiscountDays": 10
+      }
+    },
+    "delivery": {
+      "email": "",
+      "conditions": "",
+      "autoShipping": true,
+      "fastLane": false,
+      "shippingMethod": {
+        "id": "1"
+      },
+      "deliveryTerms": null,
+      "shippingAddress": {
+        "name": "Test Kunde",
+        "department": "",
+        "subDepartment": "",
+        "street": "Werner-von-Siemens-Straße 6",
+        "zipCode": "86159",
+        "city": "Augsburg",
+        "state": "BY",
+        "country": "DE",
+        "gln": ""
+      },
+      "preferredWarehouse": null,
+      "storageCountry": null
+    },
+    "netSales": {
+      "amount": "1.60",
+      "currency": "EUR"
+    },
+    "total": {
+      "amount": "1.90",
+      "currency": "EUR"
+    },
+    "positions": [
+      {
+        "id": "2",
+        "quantity": 10,
+        "discount": 0,
+        "comment": "",
+        "product": {
+          "id": "89",
+          "number": "700001",
+          "name": "Schraube M10x20",
+          "description": "",
+          "freeFields": [
+            {
+              "id": "1",
+              "value": ""
+            },
+            {
+              "id": "2",
+              "value": ""
+            },
+            {
+              "id": "3",
+              "value": ""
+            },
+            {
+              "id": "4",
+              "value": ""
+            },
+            {
+              "id": "5",
+              "value": ""
+            },
+            {
+              "id": "6",
+              "value": ""
+            },
+            {
+              "id": "7",
+              "value": ""
+            },
+            {
+              "id": "8",
+              "value": ""
+            },
+            {
+              "id": "9",
+              "value": ""
+            },
+            {
+              "id": "10",
+              "value": ""
+            },
+            {
+              "id": "11",
+              "value": ""
+            },
+            {
+              "id": "12",
+              "value": ""
+            },
+            {
+              "id": "13",
+              "value": ""
+            },
+            {
+              "id": "14",
+              "value": ""
+            },
+            {
+              "id": "15",
+              "value": ""
+            },
+            {
+              "id": "16",
+              "value": ""
+            },
+            {
+              "id": "17",
+              "value": ""
+            },
+            {
+              "id": "18",
+              "value": ""
+            },
+            {
+              "id": "19",
+              "value": ""
+            },
+            {
+              "id": "20",
+              "value": ""
+            },
+            {
+              "id": "21",
+              "value": ""
+            },
+            {
+              "id": "22",
+              "value": ""
+            },
+            {
+              "id": "23",
+              "value": ""
+            },
+            {
+              "id": "24",
+              "value": ""
+            },
+            {
+              "id": "25",
+              "value": ""
+            },
+            {
+              "id": "26",
+              "value": ""
+            },
+            {
+              "id": "27",
+              "value": ""
+            },
+            {
+              "id": "28",
+              "value": ""
+            },
+            {
+              "id": "29",
+              "value": ""
+            },
+            {
+              "id": "30",
+              "value": ""
+            },
+            {
+              "id": "31",
+              "value": ""
+            },
+            {
+              "id": "32",
+              "value": ""
+            },
+            {
+              "id": "33",
+              "value": ""
+            },
+            {
+              "id": "34",
+              "value": ""
+            },
+            {
+              "id": "35",
+              "value": ""
+            },
+            {
+              "id": "36",
+              "value": ""
+            },
+            {
+              "id": "37",
+              "value": ""
+            },
+            {
+              "id": "38",
+              "value": ""
+            },
+            {
+              "id": "39",
+              "value": ""
+            },
+            {
+              "id": "40",
+              "value": ""
+            }
+          ]
+        },
+        "tax": {
+          "vatCategory": "normal",
+          "taxText": "",
+          "effectiveVatRate": 19
+        },
+        "price": {
+          "amount": "0.15966400",
+          "currency": "EUR"
+        },
+        "netRevenueSingle": {
+          "amount": "0.1597",
+          "currency": "EUR"
+        },
+        "netRevenueTotal": {
+          "amount": "1.5966",
+          "currency": "EUR"
+        },
+        "grossRevenueSingle": {
+          "amount": "0.1900",
+          "currency": "EUR"
+        },
+        "grossRevenueTotal": {
+          "amount": "1.9000",
+          "currency": "EUR"
+        },
+        "webId": "",
+        "hasChildren": false,
+        "parent": null,
+        "sort": 1
+      }
+    ],
+    "log": {
+      "createdAt": "-0001-11-30T00:00:00+00:53",
+      "createdBy": {
+        "id": "5",
+        "name": "Kassen Mitarbeiter"
+      }
+    },
+    "tags": [
+      {
+        "id": "19",
+        "type": "pruefen",
+        "title": "Prüfen"
+      }
+    ],
+    "salesChannel": {
+      "id": "1",
+      "name": "Shopware 6 Testshop"
+    }
+  }
+}

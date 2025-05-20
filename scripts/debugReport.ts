@@ -1,24 +1,30 @@
 // scripts/debugReport.ts
+
+import "https://deno.land/std@0.216.0/dotenv/load.ts";
 import { sendSlackReport } from "../src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
 import type { TestResult } from "../src/api-tester/core/apiCaller.ts";
+import type { VersionUpdate } from "../src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
 
-// Beispiel-Ergebnisse
 const fakeResults: TestResult[] = [
   {
-    endpointName: "Demo Endpoint",
+    endpointName: "FooEndpoint",
     method: "GET",
     success: false,
     isCritical: true,
     statusCode: 500,
-    errorMessage: null,
-    missingFields: ["data.foo"],
+    errorMessage: "Simulierter Fehler",
+    missingFields: [],
     extraFields: [],
     typeMismatches: [],
-    updatedStructure: "Demo_updated.json",
+    updatedStructure: "FooEndpoint",
+    expectedFile: "./expected/FooEndpoint.json",
+    expectedMissing: false,
+    expectedData: { foo: "string" },
+    actualData: { foo: "bar" },
   },
 ];
-const fakeVersions = [{ name: "Demo Endpoint", url: "https://api/v2/demo" }];
 
-// Dry-Run: Verhindert echten Slack-Call
-await sendSlackReport(fakeResults, fakeVersions, { dryRun: true });
-console.log("✅ sendSlackReport dry-run durchgelaufen");
+// explicit type annotation hier:
+const fakeVersions: VersionUpdate[] = [];
+
+await sendSlackReport(fakeResults, fakeVersions);

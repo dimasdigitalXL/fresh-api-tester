@@ -15,54 +15,62 @@ export interface VersionUpdate {
   expectedStructure?: string;
 }
 
-/**
- * Sendet immer den echten Report an Slack (kein Dry-Run mehr).
- */
 export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: VersionUpdate[] = [],
 ): Promise<void> {
   const workspaces = getSlackWorkspaces();
 
-  // Statistik
+  // 1) Statistik berechnen
   const total = testResults.length;
   const success = testResults.filter((r) => r.success).length;
-  const warnings = testResults.filter(
-    (r) =>
-      !r.success &&
-      !r.isCritical &&
-      r.expectedMissing !== true,
-  ).length;
+  const warnings =
+    testResults.filter((r) => !r.success && !r.isCritical).length;
   const criticals = testResults.filter((r) => r.isCritical).length;
 
-  // Failing = echte Diff-Issues oder fehlende Datei
-  const failing = testResults.filter((r) =>
-    r.expectedMissing === true ||
-    r.missingFields.length > 0 ||
-    r.extraFields.length > 0 ||
-    (r.typeMismatches.length > 0) ||
-    r.isCritical
-  );
-
-  // Blocks bauen
+  // 2) Blocks zusammenbauen
   const header = renderHeaderBlock(new Date().toLocaleDateString("de-DE"));
   const versions = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
     : [];
-  const issues = failing.flatMap((res) => {
-    const suffix = res.endpointName.replace(/\s+/g, "_");
-    return renderIssueBlocks([res]).map((blk) => {
-      const b = { ...blk } as Record<string, unknown>;
-      if (typeof b.block_id === "string") {
-        b.block_id = `${b.block_id}_${suffix}`;
-      }
-      return b;
-    });
-  });
-  const stats = renderStatsBlock(total, success, warnings, criticals);
-  const blocks = [...header, ...versions, ...issues, ...stats];
+  const failing = testResults.filter((r) => !r.success || r.isCritical);
 
-  // Raw-Blocks & Approvals in KV
+  // Wenn eine erwartete Datei komplett fehlt, wollen wir das gesondert melden
+  const missingSchemaBlocks = failing
+    .filter((r) => r.expectedMissing)
+    .map((r) => ({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text:
+          `:warning: Erwartete Schema-Datei *${r.expectedFile}* für Endpoint *${r.endpointName}* fehlt.`,
+      },
+    }));
+
+  // und für alle anderen Issues die regulären Issue-Blocks
+  const issueBlocks = failing
+    .filter((r) => !r.expectedMissing)
+    .flatMap((res) => {
+      const suffix = res.endpointName.replace(/\s+/g, "_");
+      return renderIssueBlocks([res]).map((blk) => {
+        const b = { ...blk } as Record<string, unknown>;
+        if (typeof b.block_id === "string") {
+          b.block_id = `${b.block_id}_${suffix}`;
+        }
+        return b;
+      });
+    });
+
+  const stats = renderStatsBlock(total, success, warnings, criticals);
+  const blocks = [
+    ...header,
+    ...versions,
+    ...missingSchemaBlocks,
+    ...issueBlocks,
+    ...stats,
+  ];
+
+  // 3) Raw-Blocks & Approvals initial in KV speichern
   {
     const { value: existing } = await kvInstance.get<Record<string, string>>([
       "approvals",
@@ -77,7 +85,7 @@ export async function sendSlackReport(
     await kvInstance.set(["approvals"], approvals);
   }
 
-  // Nachricht an Slack senden
+  // 4) Nachricht an alle konfigurierten Workspaces schicken
   for (const { token, channel } of workspaces) {
     const payload = blocks.length > 50
       ? {
@@ -86,7 +94,11 @@ export async function sendSlackReport(
           warnings + criticals
         } Abweichungen (insgesamt ${total}).`,
       }
-      : { channel, text: "API Testbericht", blocks };
+      : {
+        channel,
+        text: "API Testbericht",
+        blocks,
+      };
 
     try {
       const resp = await axios.post(
