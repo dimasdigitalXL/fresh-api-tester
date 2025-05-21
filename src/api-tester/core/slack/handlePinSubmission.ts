@@ -4,7 +4,6 @@ import axios from "https://esm.sh/axios@1.4.0";
 import { kvInstance } from "../kv.ts";
 import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 import { getDisplayName } from "./getDisplayName.ts";
-import type { Schema } from "../types.ts";
 
 export interface SlackSubmissionPayload {
   view: {
@@ -19,9 +18,15 @@ export interface SlackSubmissionPayload {
   user: { id: string };
 }
 
+interface SlackBlock {
+  block_id?: string;
+  type: string;
+  [key: string]: unknown;
+}
+
 export async function handlePinSubmission(
   payload: SlackSubmissionPayload,
-): Promise<null> {
+): Promise<void> {
   console.log("🔔 handlePinSubmission aufgerufen");
 
   // 1) PIN auslesen
@@ -33,7 +38,7 @@ export async function handlePinSubmission(
     meta = JSON.parse(payload.view.private_metadata);
   } catch {
     console.error("❌ Konnte private_metadata nicht parsen");
-    return null;
+    return;
   }
   const { endpoint, original_ts: originalTs, channel } = meta;
   const key = endpoint.replace(/\s+/g, "_");
@@ -42,7 +47,7 @@ export async function handlePinSubmission(
   const ws = getSlackWorkspaces().find((w) => w.channel === channel);
   if (!ws) {
     console.error("🚨 Kein Workspace gefunden für Channel:", channel);
-    return null;
+    return;
   }
   const token = ws.token;
 
@@ -52,74 +57,62 @@ export async function handlePinSubmission(
     userName = await getDisplayName(payload.user.id, token);
   } catch (e) {
     console.error("❌ Fehler bei getDisplayName:", e);
-    return null;
+    return;
   }
 
   // 5) PIN prüfen
   const GLOBAL_PIN = Deno.env.get("SLACK_APPROVE_PIN") ?? "1234";
   if (pin !== GLOBAL_PIN) {
     console.warn("❌ Falsche PIN für", endpoint);
-    return null;
+    return;
   }
 
   // 6) Approval-Status in KV speichern
   try {
     const { value: storedApprovals } = await kvInstance.get<
       Record<string, string>
-    >(
-      ["approvals"],
-    );
+    >(["approvals"]);
     const approvals = storedApprovals ?? {};
     approvals[key] = "approved";
     await kvInstance.set(["approvals"], approvals);
-    console.log("✅ KV: approval status ‘approved’ für", key);
+    console.log("✅ KV: approval status 'approved' für", key);
   } catch (e) {
     console.error("❌ Fehler beim Speichern der Approvals in KV:", e);
   }
 
-  // 7) **Neues Schema aus pending → expected verschieben**
-  try {
-    const { value: pendingSchema } = await kvInstance.get<Schema>([
-      "schema-update-pending",
-      key,
-    ]);
-    if (pendingSchema) {
-      await kvInstance.set(["expected", key], pendingSchema);
-      await kvInstance.delete(["schema-update-pending", key]);
-      console.log(`✅ KV: erwartetes Schema für "${key}" aktualisiert.`);
-    }
-  } catch (e) {
-    console.error("❌ Fehler beim Verschieben des pending Schemas:", e);
-  }
-
-  // 8) Raw-Blocks lesen und Slack-Message updaten
+  // 7) Blocks aus KV lesen und Nachricht aktualisieren
   console.log("🔧 Update Slack Nachricht für Endpoint:", endpoint);
   try {
-    const { value: storedBlocks } = await kvInstance.get<
-      Array<Record<string, unknown>>
-    >(["rawBlocks", key]);
+    const { value: storedBlocks } = await kvInstance.get<SlackBlock[]>(
+      ["rawBlocks", key],
+    );
     const originalBlocks = storedBlocks ?? [];
 
-    // Decision-Buttons rausfiltern
-    const cleanedBlocks = originalBlocks.filter((b) =>
-      typeof b.block_id === "string" &&
-        b.block_id.startsWith("decision_buttons")
-        ? false
-        : true
+    // Decision-Buttons entfernen
+    const cleanedBlocks = originalBlocks.filter(
+      (b) =>
+        b.block_id !== "decision_buttons" &&
+        !b.block_id?.startsWith("decision_buttons_"),
     );
-    // letzten Divider entfernen
+
+    // letzten Divider entfernen, falls vorhanden
     if (
       cleanedBlocks.length > 0 &&
-      cleanedBlocks.at(-1)?.type === "divider"
-    ) cleanedBlocks.pop();
+      cleanedBlocks[cleanedBlocks.length - 1].type === "divider"
+    ) {
+      cleanedBlocks.pop();
+    }
 
-    // Freigabe-Footer anhängen
+    // Bestätigungs-Abschnitt anhängen
     const now = new Date().toLocaleTimeString("de-DE");
-    const newSection = [
+    const confirmationBlocks: SlackBlock[] = [
       { type: "divider" },
       {
         type: "section",
-        text: { type: "mrkdwn", text: `_AKTUALISIERT_ • ${now}` },
+        text: {
+          type: "mrkdwn",
+          text: `_AKTUALISIERT_ • ${now}`,
+        },
       },
       {
         type: "section",
@@ -129,9 +122,10 @@ export async function handlePinSubmission(
         },
       },
     ];
-    const updatedBlocks = [...cleanedBlocks, ...newSection];
 
-    // Slack chat.update
+    const updatedBlocks = [...cleanedBlocks, ...confirmationBlocks];
+
+    // Chat-Update
     const resp = await axios.post(
       "https://slack.com/api/chat.update",
       {
@@ -156,7 +150,7 @@ export async function handlePinSubmission(
     console.error("❌ Fehler beim Slack-Update:", e);
   }
 
-  // 9) Tests neu starten (wenn gewünscht)
+  // 8) Tests neu starten
   try {
     const cmd = new Deno.Command(Deno.execPath(), {
       args: ["run", "-A", "main.ts"],
@@ -167,8 +161,6 @@ export async function handlePinSubmission(
     const status = await child.status;
     console.log(`[api-tester] erneuter Durchlauf mit Exit-Code ${status.code}`);
   } catch (e) {
-    console.error("❌ Fehler beim erneuten Durchlauf:", e);
+    console.error("❌ Fehler beim Neustarten der Tests:", e);
   }
-
-  return null;
 }
