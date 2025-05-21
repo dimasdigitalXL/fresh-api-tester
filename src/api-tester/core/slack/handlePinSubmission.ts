@@ -4,7 +4,6 @@ import axios from "https://esm.sh/axios@1.4.0";
 import { kvInstance } from "../kv.ts";
 import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 import { getDisplayName } from "./getDisplayName.ts";
-import { resolveProjectPath } from "../utils.ts";
 import type { Schema } from "../types.ts";
 
 export interface SlackSubmissionPayload {
@@ -76,52 +75,45 @@ export async function handlePinSubmission(
     console.log("✅ KV: approval status ‘approved’ für", key);
   } catch (e) {
     console.error("❌ Fehler beim Speichern der Approvals in KV:", e);
-    return null;
   }
 
-  // 7) Pending-Schema aus KV lesen
-  const { value: pendingSchema } = await kvInstance.get<Schema>(
-    ["schema-update-pending", key],
-  );
-  if (!pendingSchema) {
-    console.warn("⚠️ Kein pending-Schema gefunden für", key);
-  } else {
-    // 8) Schema in FS/KV übernehmen
-    const fsPath = resolveProjectPath("api-tester", "expected", `${key}.json`);
-    try {
-      // importiere saveUpdatedSchema direkt oder kopiere dessen Logik hier
-      await Deno.writeTextFile(
-        fsPath,
-        JSON.stringify(pendingSchema, null, 2) + "\n",
-      );
-      console.info(`✅ Schema für "${key}" in FS gespeichert (${fsPath}).`);
-    } catch {
+  // 7) **Neues Schema aus pending → expected verschieben**
+  try {
+    const { value: pendingSchema } = await kvInstance.get<Schema>([
+      "schema-update-pending",
+      key,
+    ]);
+    if (pendingSchema) {
       await kvInstance.set(["expected", key], pendingSchema);
-      console.info(`✅ Schema für "${key}" in KV gespeichert.`);
+      await kvInstance.delete(["schema-update-pending", key]);
+      console.log(`✅ KV: erwartetes Schema für "${key}" aktualisiert.`);
     }
-    // pending-Eintrag löschen
-    await kvInstance.delete(["schema-update-pending", key]);
-    console.log(`✅ KV-Entry ["schema-update-pending","${key}"] gelöscht.`);
+  } catch (e) {
+    console.error("❌ Fehler beim Verschieben des pending Schemas:", e);
   }
 
-  // 9) Blocks aus KV lesen und Nachricht aktualisieren
+  // 8) Raw-Blocks lesen und Slack-Message updaten
+  console.log("🔧 Update Slack Nachricht für Endpoint:", endpoint);
   try {
     const { value: storedBlocks } = await kvInstance.get<
       Array<Record<string, unknown>>
     >(["rawBlocks", key]);
     const originalBlocks = storedBlocks ?? [];
 
-    // Decision-Buttons entfernen
-    const cleaned = originalBlocks.filter((b) =>
-      b.block_id?.toString().startsWith("decision_buttons") === false
+    // Decision-Buttons rausfiltern
+    const cleanedBlocks = originalBlocks.filter((b) =>
+      typeof b.block_id === "string" &&
+        b.block_id.startsWith("decision_buttons")
+        ? false
+        : true
     );
+    // letzten Divider entfernen
+    if (
+      cleanedBlocks.length > 0 &&
+      cleanedBlocks.at(-1)?.type === "divider"
+    ) cleanedBlocks.pop();
 
-    // letzten Divider entfernen, falls vorhanden
-    if (cleaned.length > 0 && cleaned.at(-1)?.type === "divider") {
-      cleaned.pop();
-    }
-
-    // Bestätigungs-Abschnitt anhängen
+    // Freigabe-Footer anhängen
     const now = new Date().toLocaleTimeString("de-DE");
     const newSection = [
       { type: "divider" },
@@ -137,9 +129,9 @@ export async function handlePinSubmission(
         },
       },
     ];
-    const updatedBlocks = [...cleaned, ...newSection];
+    const updatedBlocks = [...cleanedBlocks, ...newSection];
 
-    // Chat-Update
+    // Slack chat.update
     const resp = await axios.post(
       "https://slack.com/api/chat.update",
       {
@@ -164,15 +156,19 @@ export async function handlePinSubmission(
     console.error("❌ Fehler beim Slack-Update:", e);
   }
 
-  // 10) Tests neu starten (ohne Reset der Approvals)
-  const cmd = new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", "main.ts"],
-    cwd: Deno.cwd(),
-    env: { ...Deno.env.toObject(), SKIP_RESET_APPROVALS: "true" },
-  });
-  const child = cmd.spawn();
-  const status = await child.status;
-  console.log(`[api-tester] erneuter Durchlauf mit Exit-Code ${status.code}`);
+  // 9) Tests neu starten (wenn gewünscht)
+  try {
+    const cmd = new Deno.Command(Deno.execPath(), {
+      args: ["run", "-A", "main.ts"],
+      cwd: Deno.cwd(),
+      env: { ...Deno.env.toObject(), SKIP_RESET_APPROVALS: "true" },
+    });
+    const child = cmd.spawn();
+    const status = await child.status;
+    console.log(`[api-tester] erneuter Durchlauf mit Exit-Code ${status.code}`);
+  } catch (e) {
+    console.error("❌ Fehler beim erneuten Durchlauf:", e);
+  }
 
   return null;
 }
