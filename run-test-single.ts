@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-net --allow-read --allow-env
+#!/usr/bin/env -S deno run --unstable --allow-read --allow-net --allow-env
 
 // run-test-single.ts
 
@@ -8,54 +8,63 @@ import {
   runSingleEndpoint,
   VersionUpdate,
 } from "./src/api-tester/core/endpointRunner.ts";
+import type { SchemaUpdate } from "./src/api-tester/core/gitPush.ts";
 import { sendSlackReport } from "./src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
 import type { TestResult } from "./src/api-tester/core/apiCaller.ts";
 
 /**
  * Führt genau einen Endpoint-Test aus, gibt im Terminal
- * den HTTP-Status, den Strukturvergleich und – NEU –
- * den erwarteten vs. tatsächlichen JSON-Body aus.
+ * HTTP-Status, Strukturvergleich und JSON-Output aus
+ * und schickt den Report an Slack.
  */
 export async function runTestSingle(endpointName: string): Promise<void> {
+  // 1) Config laden
   const cfg = await loadConfig();
+  console.log("🔧 Geladene Endpoints:", cfg.endpoints.map((e) => e.name));
 
-  // 1) Endpunkt in der Konfiguration finden
+  // 2) Gewünschten Endpoint finden
   const endpoint = cfg.endpoints.find((ep) => ep.name === endpointName);
   if (!endpoint) {
     console.error(
-      `✋ Endpunkt mit dem Namen "${endpointName}" wurde nicht gefunden.`,
+      `✋ Endpoint "${endpointName}" nicht in config.json gefunden.`,
     );
     Deno.exit(1);
   }
 
-  // 2) Version-Updates und Test-Ergebnisse sammeln
+  // 3) Arrays für Versions- und Schema-Updates sowie Ergebnisse
   const versionUpdates: VersionUpdate[] = [];
+  const schemaUpdates: SchemaUpdate[] = [];
   const results: TestResult[] = [];
 
-  // 3) Einzelnen Endpunkt testen
-  const res = await runSingleEndpoint(endpoint, cfg, versionUpdates);
+  // 4) Testlauf
+  const res = await runSingleEndpoint(
+    endpoint,
+    cfg,
+    versionUpdates,
+    schemaUpdates,
+  );
   if (!res) {
-    console.error("⚠️ Kein Ergebnis vom Testlauf erhalten.");
+    console.error(
+      "⚠️ Kein Ergebnis: vermutlich wurde nur eine neue API-Version erkannt.",
+    );
     Deno.exit(1);
   }
   results.push(res);
 
-  // 4) Terminal-Ausgabe Grunddaten
+  // 5) Konsolen-Ausgabe
   console.log(`\n=== Test Single: "${endpoint.name}" ===`);
   console.log(`HTTP-Status:      ${res.statusCode}`);
   console.log(`Erfolg:           ${res.success ? "✅ OK" : "❌ FEHLER"}`);
 
-  // 5) Struktur-Vergleich
+  // 6) Strukturvergleich und JSON-Ausgabe
   if (endpoint.expectedStructure) {
     console.log("\n--- Struktur-Vergleich ---");
     console.log(`Erwartete Datei:  ${res.expectedFile}`);
-
     console.log(
       res.expectedMissing
         ? "⚠️ Erwartete Datei fehlt!"
         : "✅ Erwartete Datei vorhanden",
     );
-
     console.log(
       res.missingFields.length > 0
         ? `❌ Fehlende Felder:    ${res.missingFields.join(", ")}`
@@ -77,34 +86,38 @@ export async function runTestSingle(endpointName: string): Promise<void> {
       console.log("✅ Typ-Abweichungen:   keine");
     }
 
-    // 6) NEU: JSON-Vergleichsausgabe
     console.log("\n--- Erwartetes JSON (parsed) ---");
     if (res.expectedData !== undefined) {
       console.log(JSON.stringify(res.expectedData, null, 2));
     } else {
-      console.log("⚠️ Kein erwartetes JSON geladen (Datei fehlt).");
+      console.log("⚠️ Kein erwartetes JSON geladen.");
     }
 
     console.log("\n--- Tatsächliche JSON (parsed) ---");
     console.log(JSON.stringify(res.actualData, null, 2));
   } else {
     console.log(
-      "\nℹ️ Kein erwartetes Schema definiert, daher kein Strukturvergleich möglich.",
+      "\nℹ️ Kein erwartetes Schema definiert – nur tatsächliches JSON:",
     );
-    console.log("\n--- Tatsächliche JSON (parsed) ---");
     console.log(JSON.stringify(res.actualData, null, 2));
   }
 
-  // 7) Slack-Report senden (echter Modus)
-  await sendSlackReport(results, versionUpdates);
+  // 7) Slack-Report senden (außer DISABLE_SLACK=true)
+  const disableSlack = Deno.env.get("DISABLE_SLACK") === "true";
+  if (disableSlack) {
+    console.log("⚠️ Slack-Reporting deaktiviert (DISABLE_SLACK=true)");
+  } else {
+    await sendSlackReport(results, versionUpdates);
+  }
+
+  // 8) Exit-Code: 0 bei Erfolg, 1 bei Fehler
+  Deno.exit(res.success ? 0 : 1);
 }
 
 if (import.meta.main) {
   const endpointName = Deno.args[0];
   if (!endpointName) {
-    console.error(
-      "Bitte einen Endpunktnamen angeben, z.B. 'Get View Customer'",
-    );
+    console.error("Bitte Endpoint-Name angeben, z.B. `Get View Customer`");
     Deno.exit(1);
   }
   await runTestSingle(endpointName);

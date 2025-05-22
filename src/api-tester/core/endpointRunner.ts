@@ -1,63 +1,75 @@
 // src/api-tester/core/endpointRunner.ts
 
-import type { EndpointConfig as Endpoint } from "./configLoader.ts";
-import { promptUserForId } from "./promptHelper.ts";
+import type { EndpointConfig } from "./configLoader.ts";
+import type { RepoInfo, SchemaUpdate } from "./gitPush.ts";
+import { resolveProjectPath } from "./utils.ts";
+import type { Schema } from "./types.ts";
+import defaultIdsRaw from "../default-ids.json" with { type: "json" };
 import { checkAndUpdateApiVersion } from "./versionChecker.ts";
 import { testEndpoint } from "./apiCaller.ts";
-// JSON‑Import jetzt mit "with" statt "assert"
-import defaultIds from "../default-ids.json" with { type: "json" };
+import { promptUserForId } from "./promptHelper.ts";
 
+// Typisierung des importierten JSON als Map von Default-IDs
+type DefaultIds = Record<string, string | Record<string, unknown>>;
+const defaultIds = defaultIdsRaw as DefaultIds;
+
+/**
+ * Informationen über erkannte neue API-Versionen
+ */
 export interface VersionUpdate {
   name: string;
   url: string;
   expectedStructure?: string;
 }
 
+/**
+ * Führt den Test für einen einzelnen Endpoint aus.
+ * @param endpoint          Konfiguration des Endpoints
+ * @param config            Gesamte Konfiguration (mit endpoints und gitRepo)
+ * @param versionUpdates    Hier hinein werden Version-Änderungen gepusht
+ * @param schemaUpdates     Hier hinein werden Schema-Entwürfe bei Feld-/Typ-Änderungen gepusht
+ * @param dynamicParamsOverride Überschreibungen für Pfadparameter (z.B. id)
+ * @returns TestResult oder null (bei reiner Versionserkennung)
+ */
 export async function runSingleEndpoint(
-  endpoint: Endpoint,
-  config: { endpoints: Endpoint[] },
+  endpoint: EndpointConfig,
+  config: { endpoints: EndpointConfig[]; gitRepo: RepoInfo },
   versionUpdates: VersionUpdate[],
+  schemaUpdates: SchemaUpdate[],
   dynamicParamsOverride: Record<string, string> = {},
-): Promise<Awaited<ReturnType<typeof testEndpoint>> | null> {
-  const stripDataPrefix = (s: string) =>
-    s.replace(/^data\[0\]\./, "").replace(/^data\./, "");
-
-  // ─── 1️⃣ ID‑Handling ────────────────────────────────────────────────────
+): Promise<import("./apiCaller.ts").TestResult | null> {
+  // ─── 1) Dynamische Pfad-Parameter (z.B. {id}) ──────────────────────────────
   if (endpoint.requiresId) {
-    let def = (defaultIds as Record<string, unknown>)[endpoint.name];
-    if (def === undefined) {
-      def = (defaultIds as Record<string, unknown>)[
-        endpoint.name.replace(/\s+/g, "_")
-      ];
-    }
-    console.log("🔍 default-ids.json für", endpoint.name, "→", def);
-
-    const isObj = def !== null && typeof def === "object";
-    const params = isObj ? Object.keys(def as Record<string, unknown>) : ["id"];
+    const keyName = endpoint.name.replace(/\s+/g, "_");
+    const defRaw = defaultIds[keyName] ?? defaultIds[endpoint.name];
+    const isObj = defRaw !== null && typeof defRaw === "object";
+    const params = isObj
+      ? Object.keys(defRaw as Record<string, unknown>)
+      : ["id"];
 
     for (const key of params) {
       if (!dynamicParamsOverride[key]) {
-        if (!isObj && key === "id" && def != null) {
-          dynamicParamsOverride.id = String(def);
-          console.log(`🟢 Verwende gespeicherte id: ${def}`);
+        if (!isObj && defRaw != null) {
+          dynamicParamsOverride.id = String(defRaw);
+          console.log(`🟢 Verwende gespeicherte id: ${defRaw}`);
         } else if (
           isObj &&
-          (def as Record<string, unknown>)[key] != null
+          (defRaw as Record<string, unknown>)[key] != null
         ) {
           dynamicParamsOverride[key] = String(
-            (def as Record<string, unknown>)[key],
+            (defRaw as Record<string, unknown>)[key],
           );
           console.log(
-            `🟢 Verwende gespeicherte ${key}: ${
-              (def as Record<string, unknown>)[key]
-            }`,
+            `🟢 Verwende gespeicherte ${key}: ${dynamicParamsOverride[key]}`,
           );
         } else {
           const ans = await promptUserForId(
             `🟡 Bitte Wert für "${key}" bei "${endpoint.name}" angeben: `,
           );
           if (!ans) {
-            console.warn(`⚠️ Kein Wert für ${key}, skip ${endpoint.name}.`);
+            console.warn(
+              `⚠️ Kein Wert für "${key}", überspringe "${endpoint.name}".`,
+            );
             return null;
           }
           dynamicParamsOverride[key] = ans;
@@ -65,57 +77,60 @@ export async function runSingleEndpoint(
         }
       }
     }
-
-    console.log(
-      `🚀 Starte Test für "${endpoint.name}" mit Param: ` +
-        params.map((k) => `${k}=${dynamicParamsOverride[k]}`).join(", "),
-    );
   }
 
-  // ─── 2️⃣ Versionserkennung ──────────────────────────────────────────────
-  const updated = await checkAndUpdateApiVersion(
+  // ─── 2) API-Versionserkennung ──────────────────────────────────────────────
+  const versionInfo = await checkAndUpdateApiVersion(
     endpoint,
     dynamicParamsOverride,
   );
-  if (updated.versionChanged) {
+  if (versionInfo.versionChanged) {
     versionUpdates.push({
       name: endpoint.name,
-      url: updated.url,
+      url: versionInfo.url,
       expectedStructure: endpoint.expectedStructure,
     });
     const idx = config.endpoints.findIndex((e) => e.name === endpoint.name);
-    if (idx !== -1) config.endpoints[idx] = updated as Endpoint;
-    console.log(`🔄 Neue API‑Version erkannt: ${updated.url}`);
-    return null; // 2‑Schritt‑Logik: beim nächsten Durchlauf wird verglichen
+    if (idx !== -1) {
+      config.endpoints[idx] = versionInfo as EndpointConfig;
+    }
+    console.log(`🔄 Neue API-Version erkannt: ${versionInfo.url}`);
+    return null;
   }
 
-  // ─── 3️⃣ Struktur‑ & Typvergleich ───────────────────────────────────────
+  // ─── 3) Struktur- und Typ-Vergleich ───────────────────────────────────────
   const result = await testEndpoint(
-    updated as Endpoint,
+    versionInfo as EndpointConfig,
     dynamicParamsOverride,
     config,
   );
   const { missingFields, extraFields, typeMismatches } = result;
 
   if (missingFields.length) {
-    console.log(
-      `❌ Fehlende Felder: ${missingFields.map(stripDataPrefix).join(", ")}`,
-    );
+    console.log(`❌ Fehlende Felder: ${missingFields.join(", ")}`);
   }
   if (extraFields.length) {
-    console.log(
-      `➕ Neue Felder: ${extraFields.map(stripDataPrefix).join(", ")}`,
-    );
+    console.log(`➕ Neue Felder: ${extraFields.join(", ")}`);
   }
   if (typeMismatches.length) {
     console.log("⚠️ Typabweichungen:");
     for (const tm of typeMismatches) {
       console.log(
-        `• ${
-          stripDataPrefix(tm.path)
-        }: erwartet ${tm.expected}, erhalten ${tm.actual}`,
+        `• ${tm.path}: erwartet ${tm.expected}, erhalten ${tm.actual}`,
       );
     }
+  }
+
+  // ─── 4) Schema-Update protokollieren, falls Abweichungen existieren ───────
+  if (
+    missingFields.length > 0 ||
+    extraFields.length > 0 ||
+    typeMismatches.length > 0
+  ) {
+    const key = endpoint.name.replace(/\s+/g, "_");
+    const fsPath = resolveProjectPath(`src/api-tester/expected/${key}.json`);
+    const newSchema = result.actualData as Schema;
+    schemaUpdates.push({ key, fsPath, newSchema });
   }
 
   return result;

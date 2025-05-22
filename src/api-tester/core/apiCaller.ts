@@ -7,7 +7,6 @@ import {
   fromFileUrl,
   join,
 } from "https://deno.land/std@0.216.0/path/mod.ts";
-import { kvInstance } from "./kv.ts";
 import { resolveProjectPath } from "./utils.ts";
 import { analyzeResponse } from "./structureAnalyzer.ts";
 
@@ -33,16 +32,6 @@ export interface TestResult {
   actualData: unknown;
 }
 
-export interface Endpoint {
-  name: string;
-  url: string;
-  method: Method;
-  expectedStructure?: string;
-  query?: Record<string, string>;
-  bodyFile?: string;
-  headers?: Record<string, string>;
-}
-
 /** Sucht eine existierende expected-JSON im Projekt */
 function findExpectedPath(relativePath: string): string | null {
   const projectRoot = Deno.cwd();
@@ -62,6 +51,17 @@ function findExpectedPath(relativePath: string): string | null {
   return null;
 }
 
+export interface Endpoint {
+  name: string;
+  url: string;
+  method: Method;
+  expectedStructure?: string;
+  /** auch Zahlen in Query erlauben */
+  query?: Record<string, string | number>;
+  bodyFile?: string;
+  headers?: Record<string, string>;
+}
+
 export async function testEndpoint(
   endpoint: Endpoint,
   dynamicParams: Record<string, string> = {},
@@ -77,7 +77,9 @@ export async function testEndpoint(
       url = url.replace(`{${k}}`, v);
     }
     const qs = endpoint.query
-      ? "?" + new URLSearchParams(endpoint.query).toString()
+      ? "?" + new URLSearchParams(
+        Object.entries(endpoint.query).map(([k, v]) => [k, String(v)]),
+      ).toString()
       : "";
 
     // ---- 2) Body laden (falls nötig) ----
@@ -120,38 +122,23 @@ export async function testEndpoint(
 
     const actualData = resp.data;
 
-    // ---- 5) Response speichern: KV auf Deploy, lokal ins FS ----
-    const isDeploy = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
-    if (isDeploy) {
-      // Auf Deno Deploy: in KV ablegen
-      try {
-        await kvInstance.set(["responses", endpoint.name], actualData);
-        console.info(`✅ [KV] Response für "${endpoint.name}" gespeichert.`);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(
-          `❌ [KV] Konnte Response für "${endpoint.name}" nicht speichern: ${msg}`,
-        );
-      }
-    } else {
-      // Lokal: in src/api-tester/responses
-      const responsesDir = join(__dirname, "../responses");
-      try {
-        await ensureDir(responsesDir);
-        const file = join(responsesDir, `${endpoint.name}.json`);
-        await Deno.writeTextFile(
-          file,
-          JSON.stringify(actualData, null, 2) + "\n",
-        );
-        console.info(
-          `✅ [FS] Response für "${endpoint.name}" gespeichert: ${file}`,
-        );
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(
-          `⚠️ Konnte Response für "${endpoint.name}" nicht speichern: ${msg}`,
-        );
-      }
+    // ---- 5) Tatsächliche Response speichern ----
+    const responsesDir = join(__dirname, "../responses");
+    try {
+      await ensureDir(responsesDir);
+      const responseFile = join(responsesDir, `${endpoint.name}.json`);
+      await Deno.writeTextFile(
+        responseFile,
+        JSON.stringify(actualData, null, 2) + "\n",
+      );
+      console.info(
+        `✅ Response für "${endpoint.name}" gespeichert: ${responseFile}`,
+      );
+    } catch (err: unknown) {
+      const warnMsg = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `⚠️ Konnte Response für "${endpoint.name}" nicht speichern: ${warnMsg}`,
+      );
     }
 
     // ---- 6) HTTP-Fehler behandeln ----
@@ -199,7 +186,6 @@ export async function testEndpoint(
     );
     const expectedPath = findExpectedPath(expectedRelative);
     if (!expectedPath) {
-      // Datei fehlt: eigenes Issue
       return {
         endpointName: endpoint.name,
         method: endpoint.method,

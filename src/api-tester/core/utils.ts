@@ -35,6 +35,6 @@ export function safeReplace(
 ): string {
   return template.replace(
     /\$\{([^}]+)\}/g,
-    (_, key) => replacements[key] ?? "",
+    (_match, key) => replacements[key] ?? "",
   );
 }
