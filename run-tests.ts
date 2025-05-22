@@ -5,8 +5,8 @@
  * und pusht neue Schemas ins Git-Repository.
  *
  * Usage:
- *   deno run --unstable-kv -A run-tests.ts
- *   deno run --unstable-kv -A run-tests.ts --dry-run
+ *   deno run --unstable --unstable-kv -A run-tests.ts
+ *   deno run --unstable --unstable-kv -A run-tests.ts --dry-run
  *
  * ENV:
  *   DRY_RUN=true        # aktiviert Dry-Run (Slack-Payload in Konsole)
@@ -41,12 +41,7 @@ export async function runAllTests({ dryRun = false }: RunOptions = {}) {
 
   // 3) Jeden Endpoint testen
   for (const ep of cfg.endpoints) {
-    const res = await runSingleEndpoint(
-      ep,
-      cfg,
-      versionUpdates,
-      schemaUpdates,
-    );
+    const res = await runSingleEndpoint(ep, cfg, versionUpdates, schemaUpdates);
     if (res) {
       results.push(res);
     }
@@ -72,6 +67,32 @@ export async function runAllTests({ dryRun = false }: RunOptions = {}) {
       `🔀 Push ${schemaUpdates.length} Schema-Updates an Git ${cfg.gitRepo.owner}/${cfg.gitRepo.repo}@${cfg.gitRepo.branch}`,
     );
     await pushExpectedSchemaToGit(cfg.gitRepo, schemaUpdates);
+
+    // ── KV-Cleanup: pending entfernen & approvals setzen ─────────────────────
+    const kv = await Deno.openKv();
+
+    // 1) komplette pending-Liste aus KV holen
+    const pendingEntry = await kv.get<{ key: string; schema: unknown }[]>([
+      "pending",
+    ]);
+    const pendingList = Array.isArray(pendingEntry.value)
+      ? pendingEntry.value
+      : [];
+
+    // 2) gefilterte Liste zurückschreiben (alle, die noch nicht gepusht wurden)
+    const stillPending = pendingList.filter((entry) =>
+      !schemaUpdates.find((u) => u.key === entry.key)
+    );
+    await kv.set(["pending"], stillPending);
+
+    // 3) alle ge-pushten Schemas als approved markieren
+    for (const { key } of schemaUpdates) {
+      await kv.set(["approvals", key], "approved");
+    }
+
+    console.log(
+      "✅ KV-Einträge bereinigt: pending geleert und approvals gesetzt.",
+    );
   } else {
     console.log("✅ Keine Schema-Updates vorhanden, kein Git-Push nötig.");
   }
