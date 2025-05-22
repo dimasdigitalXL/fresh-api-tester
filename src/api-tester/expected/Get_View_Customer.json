@@ -1,25 +1,27 @@
 {
   "data": {
-    "id": "string",
-    "uuid": "string",
-    "customerType": "string",
-    "name": "string",
-    "firstname": "string",
-    "lastname": "string",
-    "title": "string",
-    "salutation": "string",
-    "salutationPhrase": "string",
+    "id": "440",
+    "uuid": "",
+    "number": "16",
+    "deviatingCustomerNumber": "",
+    "customerType": "person",
+    "name": "DimasTest",
+    "firstname": "",
+    "lastname": "",
+    "title": "",
+    "salutation": "other",
+    "salutationPhrase": "",
     "birthdate": null,
-    "department": "string",
-    "subDepartment": "string",
+    "department": "",
+    "subDepartment": "",
     "projects": [
       {
-        "id": "string"
+        "id": "32"
       }
     ],
     "groups": [],
     "contactDetails": {
-      "email": "string",
+      "email": "",
       "phone": null,
       "mobile": null,
       "fax": null,
@@ -28,14 +30,12 @@
     },
     "accountManager": null,
     "salesManager": null,
-    "lead": {
-      "isLead": false,
-      "status": "string"
-    }
+    "isLead": false,
+    "contactPerson": ""
   },
   "links": {
-    "self": "string",
-    "contactPersons": "string",
-    "addresses": "string"
+    "self": "https://636a1d639f14e.xentral.biz/api/v2/customers/440",
+    "contactPersons": "https://636a1d639f14e.xentral.biz/api/customers/440/contactPerson",
+    "addresses": "https://636a1d639f14e.xentral.biz/api/v2/customers/440/addresses"
   }
 }
