@@ -20,7 +20,7 @@ import { runAllTests } from "./run-tests.ts";
 // Name = "run-tests-every-10min", Schedule = "*/10 * * * *"
 Deno.cron(
   "run-tests-every-hour",
-  "*/10 * * * *",
+  "1 * * * *",
   async () => {
     console.log("⏰ [Cron] Starte API-Tests…");
     try {
