@@ -1,88 +1,88 @@
 {
   "data": [
     {
-      "id": "string",
-      "uuid": "string",
-      "name": "string",
-      "description": "string",
-      "shortDescription": "null|string",
-      "number": "string",
+      "id": "1737",
+      "uuid": "0196f701-cc44-7490-aaee-3cc3bb06d38f",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000642",
       "project": {
-        "id": "string",
-        "name": "string"
+        "id": "3",
+        "name": "Kasse"
       },
       "category": {
-        "id": "string",
-        "name": "string"
+        "id": "1",
+        "name": "Handelsware (100000)"
       },
-      "standardSupplier": "null|string",
+      "standardSupplier": null,
       "stockCount": 0,
       "stockStats": {
-        "purchasedCount": "string",
-        "totalCount": "null|string",
-        "availableCount": "string",
-        "inProductionCount": "string"
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
       },
       "purchasePriceNet": {
-        "currency": "string|null",
-        "amount": "string|null"
+        "currency": "EUR",
+        "amount": "0.0000"
       },
       "purchasePriceGross": {
-        "currency": "string|null",
-        "amount": "string|null"
+        "currency": "EUR",
+        "amount": "0.0000"
       },
       "salesPriceNet": {
-        "currency": "string|null",
-        "amount": "string|null"
+        "currency": "EUR",
+        "amount": "0.0000"
       },
       "salesPriceGross": {
-        "currency": "string|null",
-        "amount": "string|null"
+        "currency": "EUR",
+        "amount": "0.0000"
       },
-      "shopPriceDisplay": "null|string",
-      "ean": "string",
-      "manufacturerName": "string",
-      "manufacturerNumber": "string",
-      "customsTariffNumber": "string",
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
       "options": [],
       "selectedOptions": [],
       "variants": [],
       "isVariant": false,
-      "variantOf": "null|string",
-      "thumbnailUrl": "null|string",
-      "thumbnailId": "null|string",
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
       "tags": [],
       "freeFields": [],
-      "countryOfOrigin": "null|string",
-      "regionOfOrigin": "string",
-      "internalComment": "string",
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
       "measurements": {
         "weight": {
           "value": 0,
-          "unit": "string"
+          "unit": "kg"
         },
         "netWeight": {
           "value": 0,
-          "unit": "string"
+          "unit": "kg"
         },
         "length": {
           "value": 0,
-          "unit": "string"
+          "unit": "cm"
         },
         "width": {
           "value": 0,
-          "unit": "string"
+          "unit": "cm"
         },
         "height": {
           "value": 0,
-          "unit": "string"
+          "unit": "cm"
         }
       },
       "minimumOrderQuantity": 0,
       "minimumStorageQuantity": 0,
-      "salesTax": "string",
+      "salesTax": "standard",
       "hasBatches": false,
-      "serialNumbersMode": "string",
+      "serialNumbersMode": "disabled",
       "hasBestBeforeDate": false,
       "hasBillOfMaterials": false,
       "isAssembledJustInTime": false,
@@ -90,9 +90,9 @@
       "isExternallyProduced": false,
       "allowPurchaseFromAllSuppliers": false,
       "isDisabled": false,
-      "disabledReason": "string",
+      "disabledReason": "",
       "hidePriceOnDocuments": false,
-      "ageRating": "null|string",
+      "ageRating": null,
       "isStockItem": false,
       "isStockTakingDisabled": false,
       "hideJustInTimeItemsOnDocuments": false,
@@ -108,18 +108,1321 @@
       "calculatedPurchasePrice": {
         "hasCalculatedPurchasePrice": false,
         "price": {
-          "amount": "string|null",
-          "currency": "string|null"
+          "amount": "0.0000",
+          "currency": "EUR"
         }
       },
       "unit": {
-        "name": "string"
+        "name": ""
       },
-      "updatedAt": "string"
+      "updatedAt": "2025-05-22T10:24:04+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
+      "id": "1736",
+      "uuid": "0196f1db-72ea-75b1-9968-4e8c041b4371",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000641",
+      "project": {
+        "id": "3",
+        "name": "Kasse"
+      },
+      "category": {
+        "id": "1",
+        "name": "Handelsware (100000)"
+      },
+      "standardSupplier": null,
+      "stockCount": 0,
+      "stockStats": {
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": false,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-21T10:07:04+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
+      "id": "1735",
+      "uuid": "0196ecb5-18f8-7aa4-a639-668ae27623cd",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000640",
+      "project": {
+        "id": "3",
+        "name": "Kasse"
+      },
+      "category": {
+        "id": "1",
+        "name": "Handelsware (100000)"
+      },
+      "standardSupplier": null,
+      "stockCount": 0,
+      "stockStats": {
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": false,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-20T10:21:05+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
+      "id": "1734",
+      "uuid": "0196e78e-c176-7c07-b310-ed5f894130f2",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000639",
+      "project": {
+        "id": "3",
+        "name": "Kasse"
+      },
+      "category": {
+        "id": "1",
+        "name": "Handelsware (100000)"
+      },
+      "standardSupplier": null,
+      "stockCount": 0,
+      "stockStats": {
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": false,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-19T10:04:04+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
+      "id": "1733",
+      "uuid": "0196d911-3fae-731a-90c6-52a3bfaddc90",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000638",
+      "project": {
+        "id": "3",
+        "name": "Kasse"
+      },
+      "category": {
+        "id": "1",
+        "name": "Handelsware (100000)"
+      },
+      "standardSupplier": null,
+      "stockCount": 0,
+      "stockStats": {
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": false,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-16T14:54:09+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
+      "id": "1732",
+      "uuid": "0196d2f5-4a31-7674-9750-421c2b1b08f7",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000637",
+      "project": {
+        "id": "3",
+        "name": "Kasse"
+      },
+      "category": {
+        "id": "1",
+        "name": "Handelsware (100000)"
+      },
+      "standardSupplier": null,
+      "stockCount": 0,
+      "stockStats": {
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": false,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-15T10:27:04+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
+      "id": "1731",
+      "uuid": "0196cdce-f0e9-7626-b161-04b030faae98",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000636",
+      "project": {
+        "id": "3",
+        "name": "Kasse"
+      },
+      "category": {
+        "id": "1",
+        "name": "Handelsware (100000)"
+      },
+      "standardSupplier": null,
+      "stockCount": 0,
+      "stockStats": {
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": false,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-14T10:10:09+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
+      "id": "1730",
+      "uuid": "0196ca4f-6eda-7eba-b2f0-d49dd1a082ef",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000635",
+      "project": {
+        "id": "3",
+        "name": "Kasse"
+      },
+      "category": {
+        "id": "1",
+        "name": "Handelsware (100000)"
+      },
+      "standardSupplier": null,
+      "stockCount": 0,
+      "stockStats": {
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": false,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-13T18:09:05+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
+      "id": "1729",
+      "uuid": "0196ca4f-1af4-75f6-9f21-bb6cefc35053",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000634",
+      "project": {
+        "id": "3",
+        "name": "Kasse"
+      },
+      "category": {
+        "id": "1",
+        "name": "Handelsware (100000)"
+      },
+      "standardSupplier": null,
+      "stockCount": 0,
+      "stockStats": {
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": false,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-13T18:09:05+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
+      "id": "1728",
+      "uuid": "0196ca4d-b70b-70de-a036-c499fd0dd56a",
+      "name": "Testprodukt API",
+      "description": "Dieses Produkt wurde über die API erstellt.",
+      "shortDescription": null,
+      "number": "1000021000633",
+      "project": {
+        "id": "3",
+        "name": "Kasse"
+      },
+      "category": {
+        "id": "1",
+        "name": "Handelsware (100000)"
+      },
+      "standardSupplier": null,
+      "stockCount": 0,
+      "stockStats": {
+        "purchasedCount": "0.0000",
+        "totalCount": null,
+        "availableCount": "0.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": null,
+      "ean": "1234567890123",
+      "manufacturerName": "",
+      "manufacturerNumber": "",
+      "customsTariffNumber": "12345678",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": null,
+      "thumbnailId": null,
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": false,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-13T18:09:05+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "Testprodukt API",
+          "shortDescription": "",
+          "description": "Dieses Produkt wurde über die API erstellt.",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
     }
   ],
   "extra": {
-    "totalCount": 0,
+    "totalCount": 1151,
     "page": {
       "number": 1,
       "size": 10
