@@ -104,7 +104,14 @@ export async function runSingleEndpoint(
     dynamicParamsOverride,
     config,
   );
-  const { missingFields, extraFields, typeMismatches } = result;
+  const {
+    missingFields,
+    extraFields,
+    typeMismatches,
+    actualData,
+    expectedFile,
+    expectedMissing,
+  } = result;
 
   if (missingFields.length) {
     console.log(`❌ Fehlende Felder: ${missingFields.join(", ")}`);
@@ -122,14 +129,20 @@ export async function runSingleEndpoint(
   }
 
   // ─── 4) Schema-Update protokollieren, falls Abweichungen existieren ───────
-  if (
-    missingFields.length > 0 ||
-    extraFields.length > 0 ||
-    typeMismatches.length > 0
-  ) {
+  if (missingFields.length || extraFields.length || typeMismatches.length) {
     const key = endpoint.name.replace(/\s+/g, "_");
-    const fsPath = resolveProjectPath(`src/api-tester/expected/${key}.json`);
-    const newSchema = result.actualData as Schema;
+
+    // Pfad bestimmen: bestehende Datei, Konfig-Pfad oder Default-Pfad
+    let fsPath: string;
+    if (expectedFile && !expectedMissing) {
+      fsPath = expectedFile;
+    } else if (endpoint.expectedStructure) {
+      fsPath = resolveProjectPath(endpoint.expectedStructure);
+    } else {
+      fsPath = resolveProjectPath(`src/api-tester/expected/${key}.json`);
+    }
+
+    const newSchema = actualData as Schema;
     schemaUpdates.push({ key, fsPath, newSchema });
   }
 
