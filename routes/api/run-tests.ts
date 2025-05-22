@@ -8,9 +8,10 @@ export const handler: Handlers = {
     try {
       await runAllTests();
       return new Response("OK: Tests ausgelöst", { status: 200 });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("❌ Fehler in runAllTests:", err);
-      return new Response("Error", { status: 500 });
+      const msg = err instanceof Error ? err.message : String(err);
+      return new Response(`Error: ${msg}`, { status: 500 });
     }
   },
 };
