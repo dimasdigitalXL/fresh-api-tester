@@ -41,32 +41,31 @@ export async function pushExpectedSchemaToGit(
         path: pathInRepo,
         ref: repoInfo.branch,
       });
-      if (Array.isArray(resp.data)) {
-        // war ein Verzeichnis – sollte nicht passieren
-      } else if ("sha" in resp.data && typeof resp.data.sha === "string") {
+      if (!Array.isArray(resp.data) && "sha" in resp.data) {
         sha = resp.data.sha;
       }
     } catch {
-      // Datei existiert noch nicht → wir erstellen später neu
+      // Datei existiert noch nicht → wird neu angelegt
     }
 
-    // 2) committen (create oder update)
+    // 2) create or update
     try {
+      // btoa + UTF-8–safe via encodeURIComponent/unescape
+      const base64 = btoa(unescape(encodeURIComponent(content)));
       await octo.repos.createOrUpdateFileContents({
         owner: repoInfo.owner,
         repo: repoInfo.repo,
         path: pathInRepo,
         message: `chore: update expected schema ${upd.key}`,
-        content: btoa(unescape(encodeURIComponent(content))),
+        content: base64,
         branch: repoInfo.branch,
-        // sha nur mitschicken, wenn vorhanden
         ...(sha ? { sha } : {}),
       });
       console.log(`✅ Gesetzt in Git: ${pathInRepo}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`❌ Git-Push fehlgeschlagen für ${pathInRepo}: ${msg}`);
-      // Weiter zu nächsten Schema, ohne den ganzen Lauf zu beenden
+      // Weiter mit dem nächsten Update
     }
   }
 }

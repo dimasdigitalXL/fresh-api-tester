@@ -42,21 +42,19 @@ export async function runAllTests({ dryRun = false }: RunOptions = {}) {
   // 3) Jeden Endpoint testen
   for (const ep of cfg.endpoints) {
     const res = await runSingleEndpoint(ep, cfg, versionUpdates, schemaUpdates);
-    if (res) {
-      results.push(res);
-    }
+    if (res) results.push(res);
   }
 
   console.log(`▶️ run-tests.ts: Tests abgeschlossen. Dry-Run=${dryRun}`);
 
-  // 4) Slack-Reporting
+  // 4) Slack-Reporting (nur bei echten Runs)
   const disableSlack = Deno.env.get("DISABLE_SLACK") === "true";
-  if (dryRun || Deno.env.get("DRY_RUN") === "true") {
-    console.log("📣 --- Slack-Payload (Dry-Run) ---");
-    console.log(JSON.stringify({ results, versionUpdates }, null, 2));
-  } else if (!disableSlack) {
+  if (!dryRun && !disableSlack) {
     console.log("📨 sende Slack-Report …");
     await sendSlackReport(results, versionUpdates);
+  } else if (dryRun) {
+    console.log("📣 --- Slack-Payload (Dry-Run) ---");
+    console.log(JSON.stringify({ results, versionUpdates }, null, 2));
   } else {
     console.log("⚠️ Slack-Reporting deaktiviert (DISABLE_SLACK=true)");
   }
@@ -68,10 +66,10 @@ export async function runAllTests({ dryRun = false }: RunOptions = {}) {
     );
     await pushExpectedSchemaToGit(cfg.gitRepo, schemaUpdates);
 
-    // ── KV-Cleanup: pending entfernen & approvals setzen ─────────────────────
+    // ── KV-Cleanup: pending & rawBlocks aufräumen, approvals setzen ────────────
     const kv = await Deno.openKv();
 
-    // 1) komplette pending-Liste aus KV holen
+    // a) komplette pending-Liste aus KV holen (Fallback auf leeres Array)
     const pendingEntry = await kv.get<{ key: string; schema: unknown }[]>([
       "pending",
     ]);
@@ -79,19 +77,20 @@ export async function runAllTests({ dryRun = false }: RunOptions = {}) {
       ? pendingEntry.value
       : [];
 
-    // 2) gefilterte Liste zurückschreiben (alle, die noch nicht gepusht wurden)
-    const stillPending = pendingList.filter((entry) =>
-      !schemaUpdates.find((u) => u.key === entry.key)
+    // b) nur die Einträge behalten, die noch nicht gepusht wurden
+    const stillPending = pendingList.filter(
+      (entry) => !schemaUpdates.some((u) => u.key === entry.key),
     );
     await kv.set(["pending"], stillPending);
 
-    // 3) alle ge-pushten Schemas als approved markieren
+    // c) alle ge-pushten Keys als approved markieren & rawBlocks entfernen
     for (const { key } of schemaUpdates) {
       await kv.set(["approvals", key], "approved");
+      await kv.delete(["rawBlocks", key]);
     }
 
     console.log(
-      "✅ KV-Einträge bereinigt: pending geleert und approvals gesetzt.",
+      "✅ KV-Einträge bereinigt: pending geleert, approvals gesetzt und rawBlocks gelöscht.",
     );
   } else {
     console.log("✅ Keine Schema-Updates vorhanden, kein Git-Push nötig.");
