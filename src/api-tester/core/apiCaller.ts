@@ -42,32 +42,27 @@ export interface Endpoint {
   headers?: Record<string, string>;
 }
 
-/**
- * Versucht, ein erwartetes Schema zu finden.
- * Akzeptiert:
- * - einen Pfad relativ zum Projektroot,
- * - nur den Dateinamen (mit/ohne .json),
- * - oder verweist direkt ins expected-Verzeichnis.
- */
+/** Sucht das erwartete Schema ausschließlich in src/api-tester/expected */
 function findExpectedPath(p: string): string | null {
-  const normalize = (s: string) => s.endsWith(".json") ? s : `${s}.json`;
+  // lösche führendes "expected/" und stelle sicher, dass wir nur den Dateinamen haben
+  const raw = p.replace(/^expected\/+/, "");
+  const filename = raw.endsWith(".json") ? raw : `${raw}.json`;
+
   const candidates = [
-    // direkte Angabe
+    // primärer Pfad in deinem api-tester/expected-Ordner
+    resolveProjectPath("src", "api-tester", "expected", filename),
+    // Fallback-Pfade, falls jemand einen relativen Pfad angegeben hat
     resolveProjectPath(p),
-    resolveProjectPath(normalize(p)),
-    // im api-tester/expected
-    resolveProjectPath("src/api-tester/expected", p),
-    resolveProjectPath("src/api-tester/expected", normalize(p)),
-    // alter Ordner (falls noch)
-    resolveProjectPath("src/expected", p),
-    resolveProjectPath("src/expected", normalize(p)),
+    resolveProjectPath(filename),
   ];
+
   for (const file of candidates) {
     if (existsSync(file)) {
       console.debug(`🔍 Erwartetes Schema gefunden: ${file}`);
       return file;
     }
   }
+
   console.warn(
     `⚠️ Erwartetes Schema nicht gefunden. Durchsuchte Pfade:\n  ${
       candidates.join("\n  ")
@@ -76,13 +71,16 @@ function findExpectedPath(p: string): string | null {
   return null;
 }
 
+/**
+ * Führt einen Request aus, speichert Response und vergleicht mit dem erwarteten Schema.
+ */
 export async function testEndpoint(
   endpoint: Endpoint,
   dynamicParams: Record<string, string> = {},
   config?: { endpoints: Endpoint[] },
 ): Promise<TestResult> {
   try {
-    // 1) URL zusammenbauen
+    // 1) URL aufbauen
     let url = endpoint.url.replace(
       "${XENTRAL_ID}",
       Deno.env.get("XENTRAL_ID") ?? "",
@@ -97,7 +95,7 @@ export async function testEndpoint(
         ).toString()
       : "";
 
-    // 2) Body laden
+    // 2) Body laden (falls POST/PUT/PATCH)
     let data: unknown;
     if (
       ["POST", "PUT", "PATCH"].includes(endpoint.method) &&
@@ -109,7 +107,7 @@ export async function testEndpoint(
       }
     }
 
-    // 3) Header + Auth
+    // 3) Header & Auth setzen
     const baseHeaders = endpoint.headers ?? {};
     const headers: Record<string, string> = {
       ...baseHeaders,
@@ -136,7 +134,7 @@ export async function testEndpoint(
     });
     const actualData = resp.data;
 
-    // 5) Response speichern
+    // 5) Response in /responses speichern
     const responsesDir = join(__dirname, "../responses");
     try {
       await ensureDir(responsesDir);
@@ -148,7 +146,7 @@ export async function testEndpoint(
       console.info(
         `✅ Response für "${endpoint.name}" gespeichert: ${responseFile}`,
       );
-    } catch (e: unknown) {
+    } catch (e) {
       console.warn(
         `⚠️ Konnte Response für "${endpoint.name}" nicht speichern: ${e}`,
       );
@@ -175,7 +173,7 @@ export async function testEndpoint(
     }
     console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
 
-    // 7) Ohne expectedStructure beenden
+    // 7) Wenn kein expectedStructure, abbrechen
     if (!endpoint.expectedStructure) {
       return {
         endpointName: endpoint.name,
@@ -217,12 +215,11 @@ export async function testEndpoint(
     const key = endpoint.name.replace(/\s+/g, "_");
     const { missingFields, extraFields, typeMismatches } =
       await analyzeResponse(key, expectedPath, actualData);
-
     const hasDiff = missingFields.length > 0 ||
       extraFields.length > 0 ||
       typeMismatches.length > 0;
 
-    // 10) Ergebnis zurückgeben
+    // 10) TestResult zurückgeben
     return {
       endpointName: endpoint.name,
       method: endpoint.method,

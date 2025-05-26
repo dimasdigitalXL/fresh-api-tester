@@ -8,12 +8,14 @@ import { resolveProjectPath } from "./utils.ts";
 import type { Schema } from "./types.ts";
 import defaultIdsRaw from "../default-ids.json" with { type: "json" };
 import { checkAndUpdateApiVersion } from "./versionChecker.ts";
-import { testEndpoint } from "./apiCaller.ts";
+import { testEndpoint, TestResult } from "./apiCaller.ts";
 import { promptUserForId } from "./promptHelper.ts";
 
+// Map für Default-IDs
 type DefaultIds = Record<string, string | Record<string, unknown>>;
 const defaultIds = defaultIdsRaw as DefaultIds;
 
+/** Info, wenn eine neue API-Version erkannt wurde */
 export interface VersionUpdate {
   name: string;
   url: string;
@@ -22,8 +24,8 @@ export interface VersionUpdate {
 
 /**
  * Führt den Test für einen einzelnen Endpoint aus.
- * Bei Schema-Drift legt er eine neue Datei `_vN.json` in
- * src/api-tester/expected an und liefert sie via schemaUpdates zurück.
+ * Bei Schema-Drift legt er eine neue Datei `_vN.json`
+ * in `src/api-tester/expected` an und liefert sie via schemaUpdates zurück.
  */
 export async function runSingleEndpoint(
   endpoint: EndpointConfig,
@@ -31,8 +33,8 @@ export async function runSingleEndpoint(
   versionUpdates: VersionUpdate[],
   schemaUpdates: SchemaUpdate[],
   dynamicParamsOverride: Record<string, string> = {},
-): Promise<import("./apiCaller.ts").TestResult | null> {
-  // ─── 1) Dynamische Pfad-Parameter ────────────────────────
+): Promise<TestResult | null> {
+  // ─── 1) Dynamische Pfad-Parameter ───────────────────────────
   if (endpoint.requiresId) {
     const keyName = endpoint.name.replace(/\s+/g, "_");
     const defRaw = defaultIds[keyName] ?? defaultIds[endpoint.name];
@@ -73,7 +75,7 @@ export async function runSingleEndpoint(
     }
   }
 
-  // ─── 2) API-Versionserkennung ──────────────────────────
+  // ─── 2) API-Versionserkennung ───────────────────────────────
   const versionInfo = await checkAndUpdateApiVersion(
     endpoint,
     dynamicParamsOverride,
@@ -84,13 +86,16 @@ export async function runSingleEndpoint(
       url: versionInfo.url,
       expectedStructure: endpoint.expectedStructure,
     });
+    // in-memory-Konfiguration aktualisieren
     const idx = config.endpoints.findIndex((e) => e.name === endpoint.name);
-    if (idx !== -1) config.endpoints[idx] = versionInfo as EndpointConfig;
+    if (idx !== -1) {
+      config.endpoints[idx] = versionInfo as EndpointConfig;
+    }
     console.log(`🔄 Neue API-Version erkannt: ${versionInfo.url}`);
     return null;
   }
 
-  // ─── 3) Struktur- und Typ-Vergleich ────────────────────
+  // ─── 3) Struktur- und Typ-Vergleich ─────────────────────────
   const result = await testEndpoint(
     versionInfo as EndpointConfig,
     dynamicParamsOverride,
@@ -113,12 +118,14 @@ export async function runSingleEndpoint(
     }
   }
 
-  // ─── 4) Schema-Drift: versionierte Datei anlegen ───────
-  const hasDrift = missingFields.length > 0 || extraFields.length > 0 ||
+  // ─── 4) Schema-Drift: versionierte Datei anlegen ────────────
+  const hasDrift = missingFields.length > 0 ||
+    extraFields.length > 0 ||
     typeMismatches.length > 0;
   if (hasDrift) {
     const key = endpoint.name.replace(/\s+/g, "_");
-    const expectedDir = resolveProjectPath("src/api-tester/expected");
+    // korrigierter Pfad ins expected-Verzeichnis
+    const expectedDir = resolveProjectPath("src", "api-tester", "expected");
 
     // a) vorhandene Versionen (_vN.json) ermitteln
     let maxVersion = 0;

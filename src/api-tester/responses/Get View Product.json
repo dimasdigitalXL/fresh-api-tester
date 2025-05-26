@@ -17,7 +17,7 @@
     "standardSupplier": {
       "id": "3"
     },
-    "stockCount": 68.48,
+    "stockCount": 67.48,
     "shopPriceDisplay": "0.00",
     "ean": "7284242",
     "manufacturer": {
@@ -148,6 +148,6 @@
     "unit": {
       "name": "Stk"
     },
-    "updatedAt": "2025-05-26T05:48:04+02:00"
+    "updatedAt": "2025-05-26T12:28:06+02:00"
   }
 }

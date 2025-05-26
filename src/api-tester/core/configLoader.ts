@@ -1,6 +1,7 @@
 // src/api-tester/core/configLoader.ts
 
 import { resolveProjectPath } from "./utils.ts";
+import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -36,34 +37,58 @@ function assertObject(
 }
 
 export async function loadConfig(): Promise<Config> {
-  // 1) Pfad ermitteln
-  const configFile = Deno.env.get("CONFIG_PATH") ?? "config.json";
-  const configPath = resolveProjectPath(configFile);
+  // 1) Konfig-Pfade auf Try-List
+  const envPath = Deno.env.get("CONFIG_PATH");
+  const candidates = envPath ? [envPath] : [
+    // relativ zu project/src
+    "config.json",
+    // relativ zu project/src/api-tester
+    "api-tester/config.json",
+  ];
 
-  // 2) Einlesen
-  let raw: string;
-  try {
-    raw = await Deno.readTextFile(configPath);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Fehler beim Lesen von "${configPath}": ${msg}`);
+  let raw: string | undefined;
+  let usedPath: string | undefined;
+
+  for (const rel of candidates) {
+    const p = resolveProjectPath(rel);
+    try {
+      if (existsSync(p)) {
+        raw = await Deno.readTextFile(p);
+        usedPath = p;
+        break;
+      }
+    } catch {
+      // ignore
+    }
   }
 
-  // 3) Parsen
+  if (!raw || !usedPath) {
+    throw new Error(
+      `Fehler: Keine config.json gefunden. Ich habe gesucht unter:\n  ${
+        candidates
+          .map((c) => resolveProjectPath(c))
+          .join("\n  ")
+      }`,
+    );
+  }
+
+  console.log(`🔧 Lade Konfiguration aus ${usedPath}`);
+
+  // 2) JSON parsen
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Ungültiges JSON in "${configPath}": ${msg}`);
+    throw new Error(`Ungültiges JSON in "${usedPath}": ${msg}`);
   }
-  assertObject(parsed, `Konfiguration in "${configPath}"`);
+  assertObject(parsed, `Konfiguration in "${usedPath}"`);
 
-  // 4) Endpoints validieren
-  const endpointsRaw = parsed.endpoints;
+  // 3) Endpoints validieren
+  const endpointsRaw = (parsed as Record<string, unknown>).endpoints;
   if (!Array.isArray(endpointsRaw) || endpointsRaw.length === 0) {
     throw new Error(
-      `"endpoints" in "${configPath}" muss ein nicht-leeres Array sein.`,
+      `"endpoints" in "${usedPath}" muss ein nicht-leeres Array sein.`,
     );
   }
   const endpoints: EndpointConfig[] = endpointsRaw.map((e, i) => {
@@ -71,12 +96,12 @@ export async function loadConfig(): Promise<Config> {
     const name = e.name;
     const url = e.url;
     const method = e.method;
-    if (typeof name !== "string" || name === "") {
+    if (typeof name !== "string" || !name) {
       throw new Error(
         `endpoints[${i}].name muss ein nicht-leerer String sein.`,
       );
     }
-    if (typeof url !== "string" || url === "") {
+    if (typeof url !== "string" || !url) {
       throw new Error(`endpoints[${i}].url muss ein nicht-leerer String sein.`);
     }
     if (typeof method !== "string") {
@@ -100,33 +125,24 @@ export async function loadConfig(): Promise<Config> {
     };
   });
 
-  // 5) Git-Repo aus ENV oder config.json
-  //    Zuerst aus ENV
+  // 4) Git-Repo aus ENV oder config.json
   let owner = Deno.env.get("GITHUB_OWNER") ?? undefined;
   let repo = Deno.env.get("GITHUB_REPO") ?? undefined;
-  const branch = Deno.env.get("GITHUB_BRANCH") ?? "main";
+  let branch = Deno.env.get("GITHUB_BRANCH") ?? "main";
 
   if (!owner || !repo) {
-    // dann aus parsed.gitRepo
-    const rawGit = parsed.gitRepo;
-    assertObject(rawGit, `"gitRepo" in "${configPath}"`);
+    const rawGit = (parsed as Record<string, unknown>).gitRepo;
+    assertObject(rawGit, `"gitRepo" in "${usedPath}"`);
     if (typeof rawGit.owner === "string") owner = rawGit.owner;
     if (typeof rawGit.repo === "string") repo = rawGit.repo;
-    if (typeof rawGit.branch === "string") {
-      // überschreibt Default nur wenn String
-      // (ansonsten bleibt "main" oder ENV)
-      // tslint:disable-next-line: no-unused-expression
-      rawGit.branch && (branch as string) === rawGit.branch;
-    }
+    if (typeof rawGit.branch === "string") branch = rawGit.branch;
   }
 
   if (!owner || !repo) {
     throw new Error(
-      "Bitte GITHUB_OWNER und GITHUB_REPO als ENV-Variablen setzen oder in config.json unter gitRepo angeben.",
+      `Bitte GITHUB_OWNER und GITHUB_REPO als ENV-Variablen setzen oder in "${usedPath}" unter "gitRepo" angeben.`,
     );
   }
 
-  const gitRepo = { owner, repo, branch };
-
-  return { endpoints, gitRepo };
+  return { endpoints, gitRepo: { owner, repo, branch } };
 }

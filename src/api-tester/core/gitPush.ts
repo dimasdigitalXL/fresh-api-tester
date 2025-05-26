@@ -25,16 +25,14 @@ function decodeBase64(content: string): string {
 function encodeBase64(text: string): string {
   const utf8 = new TextEncoder().encode(text);
   let bin = "";
-  for (const b of utf8) {
-    bin += String.fromCharCode(b);
-  }
+  for (const b of utf8) bin += String.fromCharCode(b);
   return btoa(bin);
 }
 
 /**
  * Pusht neue „expected“-Schemas ins GitHub-Repo und
- * passt config.json so an, dass expectedStructure auf die
- * neuen Dateinamen zeigt.
+ * passt src/api-tester/config.json so an, dass expectedStructure
+ * auf die neuen Dateinamen zeigt.
  */
 export async function pushExpectedSchemaToGit(
   repoInfo: RepoInfo,
@@ -65,10 +63,10 @@ export async function pushExpectedSchemaToGit(
         sha = resp.data.sha;
       }
     } catch {
-      // existiert noch nicht
+      // existiert noch nicht → neu anlegen
     }
 
-    // 1b) Datei anlegen oder updaten
+    // 1b) Create or update
     try {
       const base64 = encodeBase64(contentText);
       await octo.repos.createOrUpdateFileContents({
@@ -95,8 +93,8 @@ export async function pushExpectedSchemaToGit(
     return;
   }
 
-  // 2) config.json aus dem Repo holen
-  const cfgPath = "config.json";
+  // 2) config.json aus dem Repo holen (liegt unter src/api-tester/)
+  const cfgPath = "src/api-tester/config.json";
   let cfgSha: string;
   let configObj: {
     endpoints: Array<{ name: string; expectedStructure?: string }>;
@@ -114,13 +112,8 @@ export async function pushExpectedSchemaToGit(
     }
     cfgSha = cfgResp.data.sha;
     configObj = JSON.parse(decodeBase64(cfgResp.data.content));
-  } catch (err) {
-    // Bei 404: einfach überspringen
-    const status = typeof err === "object" &&
-        err !== null &&
-        "status" in err
-      ? (err as { status: number }).status
-      : undefined;
+  } catch (err: unknown) {
+    const status = (err as { status?: number }).status;
     if (status === 404) {
       console.warn(
         `⚠️ config.json nicht gefunden unter '${cfgPath}'. Überspringe config.json-Update.`,

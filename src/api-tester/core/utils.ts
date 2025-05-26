@@ -1,18 +1,19 @@
 // src/api-tester/core/utils.ts
 
-import {
-  dirname,
-  fromFileUrl,
-  join,
-} from "https://deno.land/std@0.216.0/path/mod.ts";
+import { resolve } from "https://deno.land/std@0.216.0/path/mod.ts";
 
 /**
- * Löst einen Pfad relativ zum Projekt-Root auf.
+ * Löst einen Pfad relativ zum Projekt-Root (Deno.cwd()) auf.
+ *
+ * Beispiele:
+ *   resolveProjectPath("config.json")
+ *     => /Users/.../mein-projekt/config.json
+ *
+ *   resolveProjectPath("src", "api-tester", "expected", "Foo.json")
+ *     => /Users/.../mein-projekt/src/api-tester/expected/Foo.json
  */
 export function resolveProjectPath(...segments: string[]): string {
-  const __dirname = dirname(fromFileUrl(import.meta.url));
-  // springt nur EIN Level hoch: von core → src/api-tester
-  return join(__dirname, "..", ...segments);
+  return resolve(Deno.cwd(), ...segments);
 }
 
 /**
@@ -28,6 +29,9 @@ export function replaceWithFallback<T>(
 /**
  * Führt in `template` Platzhalter vom Format `${KEY}` durch Werte aus `replacements` ein.
  * Wenn ein Key nicht gefunden wird, lässt er ihn leer stehen.
+ *
+ * Beispiel:
+ *   safeReplace("Hello ${NAME}", { NAME: "Max" })  // "Hello Max"
  */
 export function safeReplace(
   template: string,
