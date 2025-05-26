@@ -17,15 +17,27 @@
       },
       "stockCount": 5,
       "stockStats": {
-        "purchasedCount": null,
+        "purchasedCount": "1.0000",
         "totalCount": "5.0000",
-        "availableCount": null,
-        "inProductionCount": null
+        "availableCount": "5.0000",
+        "inProductionCount": "0.0000"
       },
-      "purchasePriceNet": null,
-      "purchasePriceGross": null,
-      "salesPriceNet": null,
-      "salesPriceGross": null,
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "8.9900"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "10.6981"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "20.9700"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "24.9543"
+      },
       "shopPriceDisplay": "24.95",
       "ean": "5055356349261",
       "manufacturerName": "",
@@ -102,7 +114,7 @@
       "unit": {
         "name": ""
       },
-      "updatedAt": "2025-05-26T11:50:40+02:00",
+      "updatedAt": "2025-05-26T12:05:08+02:00",
       "textsAndDescriptions": {
         "inCatalog": false,
         "primaryLanguage": {
