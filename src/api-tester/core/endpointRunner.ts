@@ -6,17 +6,14 @@ import type { EndpointConfig } from "./configLoader.ts";
 import type { RepoInfo, SchemaUpdate } from "./gitPush.ts";
 import { resolveProjectPath } from "./utils.ts";
 import type { Schema } from "./types.ts";
-// korrekter Pfad zur default-ids.json im Projekt-Root:
 import defaultIdsRaw from "../default-ids.json" with { type: "json" };
 import { checkAndUpdateApiVersion } from "./versionChecker.ts";
 import { testEndpoint } from "./apiCaller.ts";
 import { promptUserForId } from "./promptHelper.ts";
 
-// defaultIdsRaw als Map typisieren
 type DefaultIds = Record<string, string | Record<string, unknown>>;
 const defaultIds = defaultIdsRaw as DefaultIds;
 
-/** Informationen über erkannte neue API-Versionen */
 export interface VersionUpdate {
   name: string;
   url: string;
@@ -24,8 +21,9 @@ export interface VersionUpdate {
 }
 
 /**
- * Führt den Test für einen einzelnen Endpoint aus und legt bei Schema-Drift
- * versionierte Dateien in src/api-tester/expected an.
+ * Führt den Test für einen einzelnen Endpoint aus.
+ * Bei Schema-Drift legt er eine neue Datei `_vN.json` in
+ * src/api-tester/expected an und liefert sie via schemaUpdates zurück.
  */
 export async function runSingleEndpoint(
   endpoint: EndpointConfig,
@@ -34,7 +32,7 @@ export async function runSingleEndpoint(
   schemaUpdates: SchemaUpdate[],
   dynamicParamsOverride: Record<string, string> = {},
 ): Promise<import("./apiCaller.ts").TestResult | null> {
-  // 1) Dynamische Pfad-Parameter
+  // ─── 1) Dynamische Pfad-Parameter ────────────────────────
   if (endpoint.requiresId) {
     const keyName = endpoint.name.replace(/\s+/g, "_");
     const defRaw = defaultIds[keyName] ?? defaultIds[endpoint.name];
@@ -75,7 +73,7 @@ export async function runSingleEndpoint(
     }
   }
 
-  // 2) API-Versionserkennung
+  // ─── 2) API-Versionserkennung ──────────────────────────
   const versionInfo = await checkAndUpdateApiVersion(
     endpoint,
     dynamicParamsOverride,
@@ -92,7 +90,7 @@ export async function runSingleEndpoint(
     return null;
   }
 
-  // 3) Struktur- und Typ-Vergleich
+  // ─── 3) Struktur- und Typ-Vergleich ────────────────────
   const result = await testEndpoint(
     versionInfo as EndpointConfig,
     dynamicParamsOverride,
@@ -115,42 +113,34 @@ export async function runSingleEndpoint(
     }
   }
 
-  // 4) Schema-Update protokollieren und versioniert ablegen
-  if (missingFields.length || extraFields.length || typeMismatches.length) {
+  // ─── 4) Schema-Drift: versionierte Datei anlegen ───────
+  const hasDrift = missingFields.length > 0 || extraFields.length > 0 ||
+    typeMismatches.length > 0;
+  if (hasDrift) {
     const key = endpoint.name.replace(/\s+/g, "_");
     const expectedDir = resolveProjectPath("src/api-tester/expected");
-    const baseName = `${key}.json`;
 
-    // 4a) Bisherige Versionen (_vN.json) ermitteln
-    const globPattern = join(expectedDir, `${key}_v*.json`);
+    // a) vorhandene Versionen (_vN.json) ermitteln
     let maxVersion = 0;
+    const globPattern = join(expectedDir, `${key}_v*.json`);
     for await (const file of expandGlob(globPattern)) {
-      const name = basename(file.path); // z.B. "Get_View_Customer_v2.json"
-      const m = name.match(/_v(\d+)\.json$/);
+      const m = basename(file.path).match(/_v(\d+)\.json$/);
       if (m) {
         const v = Number(m[1]);
         if (!isNaN(v) && v > maxVersion) maxVersion = v;
       }
     }
 
-    // 4b) Neuen Dateinamen bestimmen
-    let targetName: string;
-    if (maxVersion === 0) {
-      // erster Drift: existiert key.json?
-      const plainPath = join(expectedDir, baseName);
-      try {
-        await Deno.stat(plainPath);
-        targetName = `${key}_v1.json`;
-      } catch {
-        targetName = baseName;
-      }
-    } else {
-      targetName = `${key}_v${maxVersion + 1}.json`;
-    }
-
+    // b) nächster Versions-Suffix
+    const targetName = `${key}_v${maxVersion + 1}.json`;
     const fsPath = join(expectedDir, targetName);
-    schemaUpdates.push({ key, fsPath, newSchema: actualData as Schema });
-    console.log(`🔖 Neuer Schema-Entwurf für "${key}" angelegt: ${targetName}`);
+
+    schemaUpdates.push({
+      key,
+      fsPath,
+      newSchema: actualData as Schema,
+    });
+    console.log(`🔖 Neuer Schema-Entwurf für „${key}“ angelegt: ${targetName}`);
   }
 
   return result;
