@@ -7,52 +7,52 @@ import { basename } from "https://deno.land/std@0.216.0/path/mod.ts";
 
 export type RepoInfo = GitRepoInfo;
 
+/** Beschreibt eine neu generierte Schema-Datei */
 export interface SchemaUpdate {
   key: string;
   fsPath: string; // z.B. "/.../src/api-tester/expected/Get_View_Customer_v1.json"
-  newSchema: Schema;
+  newSchema: Schema; // der Inhalt, der gepusht werden soll
 }
 
-/** Decodes a base64-string (with possible linebreaks) into UTF-8 text */
+/** Base64-(De-)Codierung für UTF-8-Strings */
 function decodeBase64(content: string): string {
   const cleaned = content.replace(/\s+/g, "");
-  const binary = atob(cleaned);
-  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  const bin = atob(cleaned);
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);
 }
 
-/** Encodes UTF-8 text into base64 */
 function encodeBase64(text: string): string {
   const utf8 = new TextEncoder().encode(text);
-  let binary = "";
+  let bin = "";
   for (const b of utf8) {
-    binary += String.fromCharCode(b);
+    bin += String.fromCharCode(b);
   }
-  return btoa(binary);
+  return btoa(bin);
 }
 
 /**
- * Pusht neue/aktualisierte expected-Schemas ins GitHub-Repo
- * und aktualisiert die config.json so, dass expectedStructure
- * auf die neuen Dateinamen zeigt.
+ * Pusht neue „expected“-Schemas ins GitHub-Repo und
+ * passt config.json so an, dass expectedStructure auf die
+ * neuen Dateinamen zeigt.
  */
 export async function pushExpectedSchemaToGit(
   repoInfo: RepoInfo,
   schemaUpdates: SchemaUpdate[],
 ) {
   const octo = new Octokit({ auth: Deno.env.get("GITHUB_TOKEN") });
-  const pushed: { key: string; pathInRepo: string }[] = [];
 
-  // ─── 1) Schema-Dateien anlegen oder updaten ─────────────────────
+  // 1) Alle neuen/updated Schema-Dateien pushen
+  const pushed: { key: string; pathInRepo: string }[] = [];
   for (const { key, fsPath, newSchema } of schemaUpdates) {
     const contentText = JSON.stringify(newSchema, null, 2) + "\n";
     const pathInRepo = fsPath.match(/src\/api-tester\/expected\/.+$/)?.[0];
     if (!pathInRepo) {
-      console.warn(`⚠️ Repo-Pfad nicht ermittelbar für ${fsPath}`);
+      console.warn(`⚠️ Kann Repo-Pfad nicht bestimmen für ${fsPath}`);
       continue;
     }
 
-    // 1a) ggf. SHA holen, falls schon vorhanden
+    // 1a) SHA holen, falls schon vorhanden
     let sha: string | undefined;
     try {
       const resp = await octo.repos.getContent({
@@ -65,10 +65,10 @@ export async function pushExpectedSchemaToGit(
         sha = resp.data.sha;
       }
     } catch {
-      // Datei existiert nicht → wird neu erstellt
+      // existiert noch nicht
     }
 
-    // 1b) Create or Update
+    // 1b) Datei anlegen oder updaten
     try {
       const base64 = encodeBase64(contentText);
       await octo.repos.createOrUpdateFileContents({
@@ -95,7 +95,7 @@ export async function pushExpectedSchemaToGit(
     return;
   }
 
-  // ─── 2) config.json aus Repo laden ────────────────────────────
+  // 2) config.json aus dem Repo holen
   const cfgPath = "config.json";
   let cfgSha: string;
   let configObj: {
@@ -103,26 +103,38 @@ export async function pushExpectedSchemaToGit(
   };
 
   try {
-    const resp = await octo.repos.getContent({
+    const cfgResp = await octo.repos.getContent({
       owner: repoInfo.owner,
       repo: repoInfo.repo,
       path: cfgPath,
       ref: repoInfo.branch,
     });
-    if (Array.isArray(resp.data) || resp.data.type !== "file") {
+    if (Array.isArray(cfgResp.data) || cfgResp.data.type !== "file") {
       throw new Error("config.json ist kein File");
     }
-    cfgSha = resp.data.sha;
-    configObj = JSON.parse(decodeBase64(resp.data.content));
-  } catch (err: unknown) {
-    console.error("❌ Konnte config.json nicht laden:", err);
+    cfgSha = cfgResp.data.sha;
+    configObj = JSON.parse(decodeBase64(cfgResp.data.content));
+  } catch (err) {
+    // Bei 404: einfach überspringen
+    const status = typeof err === "object" &&
+        err !== null &&
+        "status" in err
+      ? (err as { status: number }).status
+      : undefined;
+    if (status === 404) {
+      console.warn(
+        `⚠️ config.json nicht gefunden unter '${cfgPath}'. Überspringe config.json-Update.`,
+      );
+      return;
+    }
+    console.error("❌ Unerwarteter Fehler beim Laden der config.json:", err);
     return;
   }
 
-  // ─── 3) In-Memory config.json updaten ────────────────────────
+  // 3) In-Memory-Anpassung: expectedStructure auf neue Dateinamen setzen
   for (const { key, pathInRepo } of pushed) {
     const filename = basename(pathInRepo); // z.B. Get_View_Customer_v2.json
-    const rel = `expected/${filename}`;
+    const rel = `expected/${filename}`; // Pfad in config.json
     for (const ep of configObj.endpoints) {
       if (ep.name.replace(/\s+/g, "_") === key) {
         ep.expectedStructure = rel;
@@ -133,16 +145,16 @@ export async function pushExpectedSchemaToGit(
     }
   }
 
-  // ─── 4) config.json zurückcommitten ─────────────────────────
+  // 4) config.json zurückcommitten
   try {
-    const newText = JSON.stringify(configObj, null, 2) + "\n";
-    const newB64 = encodeBase64(newText);
+    const newConfigText = JSON.stringify(configObj, null, 2) + "\n";
+    const newBase64 = encodeBase64(newConfigText);
     await octo.repos.createOrUpdateFileContents({
       owner: repoInfo.owner,
       repo: repoInfo.repo,
       path: cfgPath,
       message: "chore: update config.json with new expectedStructure",
-      content: newB64,
+      content: newBase64,
       branch: repoInfo.branch,
       sha: cfgSha,
     });
