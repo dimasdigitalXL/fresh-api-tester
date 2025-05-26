@@ -37,13 +37,17 @@ function assertObject(
 }
 
 export async function loadConfig(): Promise<Config> {
-  // 1) Konfig-Pfade auf Try-List
+  // 1) Mögliche Orte für config.json
   const envPath = Deno.env.get("CONFIG_PATH");
   const candidates = envPath ? [envPath] : [
-    // relativ zu project/src
+    // im Root (z.B. lokal beim Entwickeln)
     "config.json",
-    // relativ zu project/src/api-tester
+    // unter src/api-tester (lokale Projektstruktur)
+    "src/api-tester/config.json",
+    // unter api-tester (Deno Deploy könnte nur 'src' als CWD haben)
     "api-tester/config.json",
+    // evtl. direkt im src-Ordner
+    "src/config.json",
   ];
 
   let raw: string | undefined;
@@ -51,14 +55,10 @@ export async function loadConfig(): Promise<Config> {
 
   for (const rel of candidates) {
     const p = resolveProjectPath(rel);
-    try {
-      if (existsSync(p)) {
-        raw = await Deno.readTextFile(p);
-        usedPath = p;
-        break;
-      }
-    } catch {
-      // ignore
+    if (existsSync(p)) {
+      raw = await Deno.readTextFile(p);
+      usedPath = p;
+      break;
     }
   }
 
