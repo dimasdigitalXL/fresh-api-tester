@@ -13,8 +13,13 @@ export interface CompareResult {
 }
 
 /**
- * Vergleicht zwei verschachtelte JSON-Strukturen (expected vs. actual),
- * behandelt Arrays, Objekte und primitive Typen.
+ * Vergleicht zwei JSON-Schemata (erwartet vs. aktuell).
+ * - Arrays: jedes Element gegen das erste erwartete Element prüfen
+ * - Primitive: Typen vergleichen (string, number, null, boolean)
+ * - Objekte: rekursiver Key-by-Key-Abgleich
+ *
+ * @param expectedRaw Das erwartete Schema (z.B. transformValues-Output)
+ * @param actualRaw   Das aktuelle Schema (z.B. transformValues(actualData))
  */
 export function compareStructures(
   expectedRaw: unknown,
@@ -25,30 +30,37 @@ export function compareStructures(
   const typeMismatches: TypeMismatch[] = [];
 
   function recurse(expected: unknown, actual: unknown, path: string) {
-    // 1) Array vs. Array: prüfe jedes Element gegen expected[0]
-    if (Array.isArray(expected) && Array.isArray(actual)) {
-      if (expected.length > 0) {
-        for (let i = 0; i < actual.length; i++) {
-          recurse(expected[0], actual[i], `${path}[${i}]`);
+    // 1) Array vs. Array
+    const expIsArr = Array.isArray(expected);
+    const actIsArr = Array.isArray(actual);
+    if (expIsArr && actIsArr) {
+      if ((expected as unknown[]).length > 0) {
+        // Vergleiche jedes Element der aktuellen Liste mit dem ersten erwarteten
+        for (let i = 0; i < (actual as unknown[]).length; i++) {
+          recurse(
+            (expected as unknown[])[0],
+            (actual as unknown[])[i],
+            `${path}[${i}]`,
+          );
         }
       }
       return;
     }
 
-    // 2) Array vs. non-Array → Typabweichung
-    if (Array.isArray(expected) !== Array.isArray(actual)) {
+    // 2) Array ≠ non-Array → Typabweichung
+    if (expIsArr !== actIsArr) {
       typeMismatches.push({
         path: path || "<root>",
-        expected: Array.isArray(expected) ? "array" : typeof expected,
-        actual: Array.isArray(actual) ? "array" : typeof actual,
+        expected: expIsArr ? "array" : typeof expected,
+        actual: actIsArr ? "array" : typeof actual,
       });
       return;
     }
 
-    // 3) Primitive vs. Primitive → Typvergleich
-    const expIsPrimitive = expected === null || typeof expected !== "object";
-    const actIsPrimitive = actual === null || typeof actual !== "object";
-    if (expIsPrimitive && actIsPrimitive) {
+    // 3) Primitive vs. Primitive
+    const expIsPrim = expected === null || typeof expected !== "object";
+    const actIsPrim = actual === null || typeof actual !== "object";
+    if (expIsPrim && actIsPrim) {
       const expType = expected === null ? "null" : typeof expected;
       const actType = actual === null ? "null" : typeof actual;
       if (expType !== actType) {
@@ -62,8 +74,8 @@ export function compareStructures(
     }
 
     // 4) Objekt vs. non-Objekt → Typabweichung
-    const expIsObj = typeof expected === "object" && expected !== null;
-    const actIsObj = typeof actual === "object" && actual !== null;
+    const expIsObj = expected !== null && typeof expected === "object";
+    const actIsObj = actual !== null && typeof actual === "object";
     if (expIsObj !== actIsObj) {
       typeMismatches.push({
         path: path || "<root>",
@@ -73,11 +85,11 @@ export function compareStructures(
       return;
     }
 
-    // 5) Beide sind nicht-null Objects → Key-by-Key-Vergleich
+    // 5) Beide sind Objekte → rekursiver Key-Abgleich
     const expObj = expected as Record<string, unknown>;
     const actObj = actual as Record<string, unknown>;
 
-    // 5a) Fehlende Keys & Rekursion
+    // 5a) Fehlende Keys
     for (const key of Object.keys(expObj)) {
       const subPath = path ? `${path}.${key}` : key;
       if (!(key in actObj)) {
@@ -86,11 +98,10 @@ export function compareStructures(
         recurse(expObj[key], actObj[key], subPath);
       }
     }
-
     // 5b) Zusätzliche Keys
     for (const key of Object.keys(actObj)) {
-      const subPath = path ? `${path}.${key}` : key;
       if (!(key in expObj)) {
+        const subPath = path ? `${path}.${key}` : key;
         extraFields.push(subPath);
       }
     }

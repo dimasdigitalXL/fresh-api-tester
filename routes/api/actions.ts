@@ -65,10 +65,21 @@ export const handler = async (
 
   // Workspace anhand Signing-Secret finden
   const workspaces = getSlackWorkspaces();
-  const ws = workspaces.find((w) =>
-    verifySlackRequest(w.signingSecret, timestamp, rawBody, slackSig)
-  );
-  if (!ws) return new Response("Invalid signature", { status: 401 });
+  const ws = await Promise.any(
+    workspaces.map(async (w) => {
+      if (
+        await verifySlackRequest(w.signingSecret, timestamp, rawBody, slackSig)
+      ) {
+        return w;
+      }
+      throw new Error("no match");
+    }),
+  ).catch(() => null);
+
+  if (!ws) {
+    console.warn("⚠️ Invalid Slack signature");
+    return new Response("Invalid signature", { status: 401 });
+  }
 
   const callSlack = (path: string, body: unknown) =>
     fetch(`https://slack.com/api/${path}`, {
@@ -117,14 +128,16 @@ export const handler = async (
     const key = action.value;
     const { value: approvalsValue } = await kvInstance.get<
       Record<string, string>
-    >(["approvals"]);
+    >([
+      "approvals",
+    ]);
     const approvals = approvalsValue ?? {};
     approvals[key] = "waiting";
     await kvInstance.set(["approvals"], approvals);
-    return new Response("", { status: 200 });
+    return new Response(null, { status: 200 });
   }
 
-  // 3) Modal-Submission: PIN prüfen und ggf. Approval setzen
+  // 3) Modal-Submission: PIN prüfen und ggf. Approval setzen + Tests triggern
   if (
     payload.type === "view_submission" &&
     payload.view?.callback_id === "submit_pin"
@@ -133,22 +146,35 @@ export const handler = async (
     const pin = payload.view.state.values.pin_input.pin_value.value;
     const expectedPin = Deno.env.get("SLACK_APPROVE_PIN") ?? "";
     if (pin === expectedPin) {
+      // a) Approval in KV setzen
       const { value: approvalsValue } = await kvInstance.get<
         Record<string, string>
-      >(["approvals"]);
+      >([
+        "approvals",
+      ]);
       const approvals = approvalsValue ?? {};
       approvals[key] = "approved";
       await kvInstance.set(["approvals"], approvals);
 
-      // Ephemeral-Feedback
+      // b) Ephemeral-Feedback an den Nutzer
       await callSlack("chat.postEphemeral", {
         channel: key,
         user: payload.user.id,
         text: `✅ Freigabe für \`${key}\` erfolgreich.`,
       });
 
-      return new Response("", { status: 200 });
+      // c) Tests sofort erneut auslösen
+      const runUrl = new URL("/api/run-tests", req.url).toString();
+      // feuert asynchron den Batch-Run ab
+      fetch(runUrl).then((r) => {
+        if (!r.ok) {
+          console.error("Fehler beim Triggern von run-tests:", r.status);
+        }
+      });
+
+      return new Response(null, { status: 200 });
     }
+
     // PIN falsch → Fehler im Modal anzeigen
     return new Response(
       JSON.stringify({

@@ -6,12 +6,13 @@ import type { EndpointConfig } from "./configLoader.ts";
 import type { RepoInfo, SchemaUpdate } from "./gitPush.ts";
 import { resolveProjectPath } from "./utils.ts";
 import type { Schema } from "./types.ts";
+// korrekter Pfad zur default-ids.json im Projekt-Root:
 import defaultIdsRaw from "../default-ids.json" with { type: "json" };
 import { checkAndUpdateApiVersion } from "./versionChecker.ts";
 import { testEndpoint } from "./apiCaller.ts";
 import { promptUserForId } from "./promptHelper.ts";
 
-// Typisierung des importierten JSON als Map von Default-IDs
+// defaultIdsRaw als Map typisieren
 type DefaultIds = Record<string, string | Record<string, unknown>>;
 const defaultIds = defaultIdsRaw as DefaultIds;
 
@@ -24,7 +25,7 @@ export interface VersionUpdate {
 
 /**
  * Führt den Test für einen einzelnen Endpoint aus und legt bei Schema-Drift
- * eine neue Datei src/api-tester/expected/{Key}[ _v{n} ].json an.
+ * versionierte Dateien in src/api-tester/expected an.
  */
 export async function runSingleEndpoint(
   endpoint: EndpointConfig,
@@ -33,7 +34,7 @@ export async function runSingleEndpoint(
   schemaUpdates: SchemaUpdate[],
   dynamicParamsOverride: Record<string, string> = {},
 ): Promise<import("./apiCaller.ts").TestResult | null> {
-  // 1) Dynamische Pfad-Parameter (z.B. {id})
+  // 1) Dynamische Pfad-Parameter
   if (endpoint.requiresId) {
     const keyName = endpoint.name.replace(/\s+/g, "_");
     const defRaw = defaultIds[keyName] ?? defaultIds[endpoint.name];
@@ -47,7 +48,10 @@ export async function runSingleEndpoint(
         if (!isObj && defRaw != null) {
           dynamicParamsOverride.id = String(defRaw);
           console.log(`🟢 Verwende gespeicherte id: ${defRaw}`);
-        } else if (isObj && (defRaw as Record<string, unknown>)[key] != null) {
+        } else if (
+          isObj &&
+          (defRaw as Record<string, unknown>)[key] != null
+        ) {
           dynamicParamsOverride[key] = String(
             (defRaw as Record<string, unknown>)[key],
           );
@@ -117,7 +121,7 @@ export async function runSingleEndpoint(
     const expectedDir = resolveProjectPath("src/api-tester/expected");
     const baseName = `${key}.json`;
 
-    // 4a) existierende Versionen (_vN.json) ermitteln
+    // 4a) Bisherige Versionen (_vN.json) ermitteln
     const globPattern = join(expectedDir, `${key}_v*.json`);
     let maxVersion = 0;
     for await (const file of expandGlob(globPattern)) {
@@ -129,21 +133,18 @@ export async function runSingleEndpoint(
       }
     }
 
-    // 4b) Ziel-Dateiname bestimmen
+    // 4b) Neuen Dateinamen bestimmen
     let targetName: string;
     if (maxVersion === 0) {
-      // noch keine _vN, prüfe ob key.json existiert
+      // erster Drift: existiert key.json?
       const plainPath = join(expectedDir, baseName);
       try {
         await Deno.stat(plainPath);
-        // key.json existiert → lege _v1 an
         targetName = `${key}_v1.json`;
       } catch {
-        // key.json nicht vorhanden → lege key.json an
         targetName = baseName;
       }
     } else {
-      // nächste Version
       targetName = `${key}_v${maxVersion + 1}.json`;
     }
 

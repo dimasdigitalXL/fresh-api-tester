@@ -1,77 +1,84 @@
 // src/api-tester/core/kv.ts
 
-// Deno Deploy stellt globalThis.KV bereit
+/**
+ * KV-Instance für Tests und Deploy:
+ * - In Deno Deploy: globalThis.KV
+ * - Lokal (mit --unstable-kv): Deno.openKv()
+ * - CI / SKIP_KV: In-Memory-Stub
+ */
+
 declare global {
-  var KV: Deno.Kv;
+  var KV: Deno.Kv; // in Deno Deploy verfügbar
 }
 
-/** Erstellt einen In-Memory-Stub, der die minimalen KV-Methoden implementiert */
+// Minimaler In-Memory-KV-Stub für CI oder SKIP_KV=true
 function createInMemoryKv(): Deno.Kv {
   const store = new Map<string, unknown>();
+  const toKey = (key: Deno.KvKey) => (key as string[]).join("::");
 
-  const kvStub = {
+  return {
     get<T>(key: Deno.KvKey) {
-      const composite = (key as unknown as string[]).join("::");
+      const k = toKey(key);
       return Promise.resolve({
         key,
-        value: store.get(composite) as T,
+        value: store.get(k) as T,
         versionstamp: "",
       });
     },
     set(key: Deno.KvKey, value: unknown) {
-      const composite = (key as unknown as string[]).join("::");
-      store.set(composite, value);
+      store.set(toKey(key), value);
       return Promise.resolve({ key, versionstamp: "" });
     },
     delete(key: Deno.KvKey) {
-      const composite = (key as unknown as string[]).join("::");
-      store.delete(composite);
+      store.delete(toKey(key));
       return Promise.resolve({ key, versionstamp: "" });
     },
-    list<T>(_options?: Deno.KvListSelector) {
-      async function* gen() {
-        // kein Eintrag
-      }
+    list<T>(_opts?: unknown) {
+      async function* gen() {/* leer */}
       return gen();
     },
-    // Stub für weitere Methoden, damit der Type-Checker zufrieden ist
-    getMany: (_keys: Deno.KvKey[]) => Promise.resolve([]),
-    atomic: () => {
-      throw new Error("atomic nicht implementiert");
+    getMany(keys: Deno.KvKey[]) {
+      return Promise.resolve(
+        keys.map((key) => ({ key, value: store.get(toKey(key)) })),
+      );
     },
-    enqueue: () => Promise.reject(new Error("enqueue nicht implementiert")),
-    listenQueue: () => {
-      throw new Error("listenQueue nicht implementiert");
+    atomic() {
+      throw new Error("KV.atomic() nicht implementiert im Stub");
     },
-    restore: async () => {},
-    transaction: (_fn: unknown) =>
-      Promise.reject(new Error("transaction nicht implementiert")),
-  };
-
-  // Cast auf Deno.Kv via unknown
-  return kvStub as unknown as Deno.Kv;
+    enqueue() {
+      return Promise.reject(
+        new Error("KV.enqueue() nicht implementiert im Stub"),
+      );
+    },
+    listenQueue() {
+      throw new Error("KV.listenQueue() nicht implementiert im Stub");
+    },
+    restore() {
+      return Promise.resolve();
+    },
+    transaction() {
+      return Promise.reject(
+        new Error("KV.transaction() nicht implementiert im Stub"),
+      );
+    },
+  } as unknown as Deno.Kv;
 }
 
-let _kv: Deno.Kv;
+let kv: Deno.Kv;
 
-// Verwende In-Memory-Stub, wenn SKIP_KV oder CI gesetzt ist
-if (Deno.env.get("SKIP_KV") === "true" || Deno.env.get("CI") === "true") {
+if (Deno.env.get("CI") === "true" || Deno.env.get("SKIP_KV") === "true") {
   console.warn("⚠️ SKIP_KV/CI erkannt – verwende In-Memory KV-Stub");
-  _kv = createInMemoryKv();
-
-  // Auf Deno Deploy steht globalThis.KV zur Verfügung
+  kv = createInMemoryKv();
 } else if (typeof globalThis.KV !== "undefined") {
-  _kv = globalThis.KV;
-
-  // Lokal mit --unstable-kv
+  // Deno Deploy
+  kv = globalThis.KV;
 } else if (typeof Deno.openKv === "function") {
-  _kv = await Deno.openKv();
-
-  // Kein KV verfügbar → Fehler
+  // Lokal mit --unstable-kv
+  kv = await Deno.openKv();
 } else {
   throw new Error(
-    "Deno KV nicht verfügbar. Starte mit --unstable-kv oder setze SKIP_KV=true.",
+    "Deno KV nicht verfügbar – bitte mit --unstable-kv starten oder SKIP_KV=true setzen.",
   );
 }
 
-export const kvInstance = _kv;
+export const kvInstance = kv;

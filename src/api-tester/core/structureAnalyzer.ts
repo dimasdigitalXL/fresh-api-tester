@@ -6,11 +6,11 @@ import { kvInstance } from "./kv.ts";
 import type { Diff, Schema } from "./types.ts";
 
 /**
- * Wandelt beliebige JSON-Werte in ein abstraktes Schema-Modell um:
- * - Strings → "string"
- * - Zahlen → 0
- * - Arrays → nur erstes Element (als Repräsentant)
- * - Objekte → rekursiv
+ * Wandelt JSON-Werte in ein abstraktes Schema-Modell um:
+ * - strings → "string"
+ * - numbers → 0
+ * - arrays → nur erstes Element als Repräsentant
+ * - objects → rekursiv
  */
 export function transformValues(value: unknown): unknown {
   if (typeof value === "string") return "string";
@@ -20,8 +20,8 @@ export function transformValues(value: unknown): unknown {
   }
   if (value !== null && typeof value === "object") {
     const out: Record<string, unknown> = {};
-    for (const k in value as Record<string, unknown>) {
-      out[k] = transformValues((value as Record<string, unknown>)[k]);
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = transformValues(v);
     }
     return out;
   }
@@ -29,77 +29,61 @@ export function transformValues(value: unknown): unknown {
 }
 
 /**
- * Lädt das erwartete Schema erst aus KV, sonst aus FS.
+ * Lädt das erwartete Schema zuerst aus KV, andernfalls aus dem Dateisystem.
  */
 export async function loadExpectedSchema(
   key: string,
   fsPath: string,
 ): Promise<Schema> {
-  // 1) Versuch in KV
-  const entry = await kvInstance.get<Schema>(["expected", key]);
-  if (entry.value) {
-    console.debug(`✔️ Schema für "${key}" aus KV geladen.`);
-    return entry.value;
+  // 1) Versuch aus KV
+  try {
+    const { value } = await kvInstance.get<Schema>(["expected", key]);
+    if (value) {
+      console.debug(`✔️ [KV] Schema "${key}" geladen.`);
+      return value;
+    }
+  } catch (err) {
+    console.warn(`⚠️ [KV] Fehler beim Schema-Laden für "${key}": ${err}`);
   }
-  // 2) Fallback auf FS
+  // 2) Fallback auf File-System
   if (existsSync(fsPath)) {
     const raw = await Deno.readTextFile(fsPath);
-    console.debug(`✔️ Schema für "${key}" aus FS geladen (${fsPath}).`);
+    console.debug(`✔️ [FS] Schema "${key}" geladen (${fsPath}).`);
     return JSON.parse(raw) as Schema;
   }
   throw new Error(`Erwartetes Schema nicht gefunden (KV & FS): ${key}`);
 }
 
 /**
- * Speichert das Schema:
- * - Auf Deploy: direkt in KV
- * - Lokal: zunächst ins FS, bei Fehlern Fallback auf KV
+ * Speichert das aktualisierte Schema ins FS (Versionierung handled extern),
+ * und bei Schreibfehlern als Fallback in KV.
  */
 export async function saveUpdatedSchema(
   key: string,
   fsPath: string,
   schema: Schema,
 ): Promise<void> {
-  const isDeploy = Boolean(Deno.env.get("DENO_DEPLOYMENT_ID"));
-
-  if (isDeploy) {
-    // ► Deploy: nur KV
+  try {
+    await Deno.writeTextFile(fsPath, JSON.stringify(schema, null, 2) + "\n");
+    console.info(`✅ [FS] Schema "${key}" gespeichert (${fsPath}).`);
+  } catch (err) {
+    console.warn(
+      `⚠️ [FS] Fehler beim Speichern von "${key}": ${err}. Fallback auf KV.`,
+    );
     try {
       await kvInstance.set(["expected", key], schema);
-      console.info(`✅ [KV] Schema “${key}” gespeichert.`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`❌ [KV] Konnte Schema “${key}” nicht speichern: ${msg}`);
-    }
-  } else {
-    // ► Lokal: FS mit KV-Fallback
-    try {
-      await Deno.writeTextFile(fsPath, JSON.stringify(schema, null, 2) + "\n");
-      console.info(`✅ [FS] Schema “${key}” gespeichert (${fsPath}).`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `⚠️ FS-Schreibfehler bei Schema “${key}”: ${msg}. Fallback auf KV.`,
-      );
-      try {
-        await kvInstance.set(["expected", key], schema);
-        console.info(`✅ [KV] Schema “${key}” als Fallback gespeichert.`);
-      } catch (err2: unknown) {
-        const msg2 = err2 instanceof Error ? err2.message : String(err2);
-        console.error(
-          `❌ [KV] Fallback fehlgeschlagen für Schema “${key}”: ${msg2}`,
-        );
-      }
+      console.info(`✅ [KV] Schema "${key}" gespeichert.`);
+    } catch (err2) {
+      console.error(`❌ [KV] Fallback fehlgeschlagen für "${key}": ${err2}`);
     }
   }
 }
 
 /**
- * Vergleicht das geladene Schema mit der aktuellen Antwort.
- *
- * - Fehlende/zusätzliche Felder → neuen Entwurf in KV unter ["schema-update-pending", key] ablegen
- * - Nur Typ-Abweichungen → sofort speichern (FS oder KV)
- * - Keine Abweichungen → nichts tun
+ * Vergleicht das geladene erwartete Schema mit der aktuellen Antwort:
+ * - Bei fehlenden/zusätzlichen Feldern → entwirft neuen Schema-Entwurf in KV,
+ * - Bei nur Typ-Abweichungen       → übernimmt automatisch (FS/KV),
+ * - Bei keiner Abweichung         → keine Aktion.
  */
 export async function analyzeResponse(
   key: string,
@@ -109,7 +93,7 @@ export async function analyzeResponse(
   // 1) Erwartetes Schema laden
   const expectedSchema = await loadExpectedSchema(key, fsPath);
 
-  // 2) Aktuelles Schema erzeugen
+  // 2) Aktuelles Schema ableiten
   const actualSchema = transformValues(actualResponse) as Schema;
 
   // 3) Strukturen vergleichen
@@ -118,23 +102,18 @@ export async function analyzeResponse(
     actualSchema,
   );
 
-  // 4a) Fehlende oder zusätzliche Felder → pending
+  // 4) Je nach Ergebnis handeln
   if (missingFields.length > 0 || extraFields.length > 0) {
-    console.info(`❗️ Struktur-Änderung "${key}" erkannt:`);
-    console.info(`   Fehlende Felder:    ${missingFields.join(", ")}`);
-    console.info(`   Zusätzliche Felder: ${extraFields.join(", ")}`);
-    await kvInstance.set(["schema-update-pending", key], actualSchema);
     console.info(
-      `🔒 Neuer Schema-Entwurf für "${key}" in KV unter ["schema-update-pending","${key}"] gespeichert.`,
+      `❗️ Schema-Drift für "${key}" erkannt: missing=${missingFields.length}, extra=${extraFields.length}`,
     );
-  } // 4b) Nur Typ-Abweichungen → sofort übernehmen
-  else if (typeMismatches.length > 0) {
+    await kvInstance.set(["schema-update-pending", key], actualSchema);
+  } else if (typeMismatches.length > 0) {
     console.debug(
-      `🔄 Typ-Abweichungen (${typeMismatches.length}) für "${key}" – übernehme automatisch.`,
+      `⚠️ Typ-Abweichungen (${typeMismatches.length}) für "${key}" – übernehme automatisch.`,
     );
     await saveUpdatedSchema(key, fsPath, actualSchema);
-  } // 4c) Keine Abweichungen
-  else {
+  } else {
     console.info(`✅ Keine Struktur-Abweichungen für "${key}".`);
   }
 

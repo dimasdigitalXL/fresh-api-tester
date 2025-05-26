@@ -22,6 +22,7 @@ import type { SchemaUpdate } from "./src/api-tester/core/gitPush.ts";
 import type { TestResult } from "./src/api-tester/core/apiCaller.ts";
 import { sendSlackReport } from "./src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
 import { pushExpectedSchemaToGit } from "./src/api-tester/core/gitPush.ts";
+import { kvInstance } from "./src/api-tester/core/kv.ts";
 
 interface RunOptions {
   dryRun?: boolean;
@@ -67,12 +68,13 @@ export async function runAllTests({ dryRun = false }: RunOptions = {}) {
     await pushExpectedSchemaToGit(cfg.gitRepo, schemaUpdates);
 
     // ── KV-Cleanup: pending & rawBlocks aufräumen, approvals setzen ────────────
-    const kv = await Deno.openKv();
 
     // a) komplette pending-Liste aus KV holen (Fallback auf leeres Array)
-    const pendingEntry = await kv.get<{ key: string; schema: unknown }[]>([
-      "pending",
-    ]);
+    const pendingEntry = await kvInstance.get<
+      { key: string; schema: unknown }[]
+    >(
+      ["pending"],
+    );
     const pendingList = Array.isArray(pendingEntry.value)
       ? pendingEntry.value
       : [];
@@ -81,16 +83,16 @@ export async function runAllTests({ dryRun = false }: RunOptions = {}) {
     const stillPending = pendingList.filter(
       (entry) => !schemaUpdates.some((u) => u.key === entry.key),
     );
-    await kv.set(["pending"], stillPending);
+    await kvInstance.set(["pending"], stillPending);
 
     // c) alle ge-pushten Keys als approved markieren & rawBlocks entfernen
     for (const { key } of schemaUpdates) {
-      await kv.set(["approvals", key], "approved");
-      await kv.delete(["rawBlocks", key]);
+      await kvInstance.set(["approvals", key], "approved");
+      await kvInstance.delete(["rawBlocks", key]);
     }
 
     console.log(
-      "✅ KV-Einträge bereinigt: pending geleert, approvals gesetzt und rawBlocks gelöscht.",
+      "✅ KV-Einträge bereinigt: pending aktualisiert, approvals gesetzt & rawBlocks gelöscht.",
     );
   } else {
     console.log("✅ Keine Schema-Updates vorhanden, kein Git-Push nötig.");

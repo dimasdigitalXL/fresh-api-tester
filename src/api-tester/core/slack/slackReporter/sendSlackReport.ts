@@ -16,10 +16,9 @@ export interface VersionUpdate {
   expectedStructure?: string;
 }
 
-// Maximal 50 Blocks pro Slack-Message
 const MAX_BLOCKS_PER_MESSAGE = 50;
 
-// Hilfsfunktion: Array in Stücke aufteilen
+/** Teilt ein Array in gleich große Chunks */
 function chunkArray<T>(array: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < array.length; i += size) {
@@ -32,22 +31,61 @@ export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: VersionUpdate[] = [],
 ): Promise<void> {
-  // 1) Nur echte Schema-Issues
-  const schemaIssues = testResults.filter((r) =>
+  // 1) Ermittele alle Schema-Issues
+  const allIssues = testResults.filter((r) =>
     r.expectedMissing ||
     r.missingFields.length > 0 ||
     r.extraFields.length > 0 ||
     r.typeMismatches.length > 0
   );
 
-  // 2) Bausteine für Nachricht
+  // 2) Lese aktuellen Approval-Status aus KV
+  const { value: approvalsValue } = await kvInstance.get<
+    Record<string, string>
+  >(["approvals"]);
+  const approvals = approvalsValue ?? {};
+
+  // 3) Filtere nur die, die noch "pending" sind
+  const pendingIssues = allIssues.filter((r) => {
+    const key = r.endpointName.replace(/\s+/g, "_");
+    return approvals[key] === "pending";
+  });
+
+  // 4) Bausteine bauen
   const headerBlocks = renderHeaderBlock(
     new Date().toLocaleDateString("de-DE"),
   );
   const versionBlocks = versionUpdates.length > 0
     ? renderVersionBlocks(versionUpdates)
     : [];
-  const missingSchemaBlocks = schemaIssues
+  const statsBlocks = renderStatsBlock(
+    testResults.length,
+    testResults.length - allIssues.length,
+    0,
+    allIssues.length,
+  );
+
+  // Wenn keine pending-Issues übrig sind, sende nur den No-Issues-Report
+  if (pendingIssues.length === 0) {
+    const workspaces = getSlackWorkspaces();
+    for (const { token, channel } of workspaces) {
+      await axios.post("https://slack.com/api/chat.postMessage", {
+        channel,
+        text: "API Testbericht – keine neuen Schema-Abweichungen",
+        blocks: [...headerBlocks, ...versionBlocks, ...statsBlocks],
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+    console.log("📩 Slack-Testbericht (keine pending-Issues) abgeschlossen.");
+    return;
+  }
+
+  // 5) Erzeuge Blocks für jede Issue
+  const missingSchemaBlocks = pendingIssues
     .filter((r) => r.expectedMissing)
     .map((r) => ({
       type: "section" as const,
@@ -57,26 +95,20 @@ export async function sendSlackReport(
           `:warning: Erwartetes Schema *${r.expectedFile}* für Endpoint *${r.endpointName}* fehlt.`,
       },
     }));
-  const issueBlocks = schemaIssues
-    .filter((r) => !r.expectedMissing)
-    .flatMap((res) => {
-      const suffix = res.endpointName.replace(/\s+/g, "_");
-      return renderIssueBlocks([res]).map((blk) => {
-        const b = { ...blk } as Record<string, unknown>;
-        if (typeof b.block_id === "string") {
-          b.block_id = `${b.block_id}_${suffix}`;
-        }
-        return b;
-      });
-    });
-  const statsBlocks = renderStatsBlock(
-    testResults.length,
-    testResults.length - schemaIssues.length,
-    0,
-    schemaIssues.length,
-  );
 
-  // 3) Blocks chunken
+  const issueBlocks = pendingIssues.flatMap((res) => {
+    const suffix = res.endpointName.replace(/\s+/g, "_");
+    return renderIssueBlocks([res]).map((blk) => {
+      // unique block_id per endpoint
+      return {
+        ...blk,
+        block_id: typeof blk.block_id === "string"
+          ? `${blk.block_id}_${suffix}`
+          : blk.block_id,
+      };
+    });
+  });
+
   const bodyBlocks = [...missingSchemaBlocks, ...issueBlocks];
   const headerCount = headerBlocks.length + versionBlocks.length;
   const footerCount = statsBlocks.length;
@@ -84,80 +116,37 @@ export async function sendSlackReport(
     1,
     MAX_BLOCKS_PER_MESSAGE - headerCount - footerCount,
   );
-  const issueChunks = chunkArray(bodyBlocks, maxPerChunk);
+  const chunks = chunkArray(bodyBlocks, maxPerChunk);
 
-  // 4) Approvals in KV speichern
-  {
-    const { value: existing } = await kvInstance.get<Record<string, string>>([
-      "approvals",
-    ]);
-    const approvals = existing ?? {};
-    for (const res of schemaIssues) {
-      const key = res.endpointName.replace(/\s+/g, "_");
-      const raw = renderIssueBlocks([res]);
-      await kvInstance.set(["rawBlocks", key], raw);
-      approvals[key] = "pending";
-    }
-    await kvInstance.set(["approvals"], approvals);
+  // 6) Speichere rawBlocks für modale Approvals (nur pending)
+  for (const res of pendingIssues) {
+    const key = res.endpointName.replace(/\s+/g, "_");
+    const raw = renderIssueBlocks([res]);
+    await kvInstance.set(["rawBlocks", key], raw);
   }
 
-  // 5) Nachrichten senden
+  // 7) Senden an Slack
   const workspaces = getSlackWorkspaces();
   for (const { token, channel } of workspaces) {
-    // a) Mehrere Nachrichten, falls nötig
-    for (let i = 0; i < issueChunks.length; i++) {
+    for (let i = 0; i < chunks.length; i++) {
       const blocks = [
         ...(i === 0 ? headerBlocks : []),
         ...(i === 0 ? versionBlocks : []),
-        ...issueChunks[i],
-        ...(i === issueChunks.length - 1 ? statsBlocks : []),
+        ...chunks[i],
+        ...(i === chunks.length - 1 ? statsBlocks : []),
       ];
-      try {
-        const resp = await axios.post(
-          "https://slack.com/api/chat.postMessage",
-          {
-            channel,
-            text: `API Testbericht – Seite ${i + 1}/${issueChunks.length}`,
-            blocks,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
-        );
-        console.log("▶️ Slack chat.postMessage:", resp.data);
-      } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error("❌ Fehler beim Senden an Slack:", errMsg);
-      }
-    }
-
-    // b) Wenn keine SchemaIssues existieren
-    if (issueChunks.length === 0) {
-      try {
-        const resp = await axios.post(
-          "https://slack.com/api/chat.postMessage",
-          {
-            channel,
-            text: "API Testbericht – keine Schema-Abweichungen",
-            blocks: [...headerBlocks, ...versionBlocks, ...statsBlocks],
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
-        );
-        console.log("▶️ Slack chat.postMessage (no issues):", resp.data);
-      } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error("❌ Fehler beim Senden an Slack (no issues):", errMsg);
-      }
+      await axios.post("https://slack.com/api/chat.postMessage", {
+        channel,
+        text: `API Testbericht – Seite ${i + 1}/${chunks.length}`,
+        blocks,
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
     }
   }
 
-  console.log("📩 Slack-Testbericht abgeschlossen.");
+  console.log("📩 Slack-Testbericht (pending-Issues) abgeschlossen.");
 }
