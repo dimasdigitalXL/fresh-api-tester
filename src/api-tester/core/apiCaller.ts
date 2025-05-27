@@ -80,6 +80,25 @@ export async function testEndpoint(
   config?: { endpoints: Endpoint[] },
 ): Promise<TestResult> {
   try {
+    // --- Debug: Verzeichnislisting der erwarteten Schemas auf Deploy ---
+    try {
+      const expectedDir = resolveProjectPath("src", "api-tester", "expected");
+      const cmd = new Deno.Command("ls", {
+        args: ["-R", expectedDir],
+        stdout: "piped",
+        stderr: "piped",
+      });
+      const { stdout, stderr } = await cmd.output();
+      const output = new TextDecoder().decode(stdout);
+      console.log("Expected-Schemas auf Deploy:\n" + output);
+      if (stderr.byteLength) {
+        console.warn("ls stderr:\n" + new TextDecoder().decode(stderr));
+      }
+    } catch (e) {
+      console.warn("Fehler beim Listen der expected-Verzeichnisse:", e);
+    }
+    // --------------------------------------------------------------------
+
     // 1) URL aufbauen
     let url = endpoint.url.replace(
       "${XENTRAL_ID}",

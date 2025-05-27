@@ -69,10 +69,23 @@ export async function sendSlackReport(
   if (pendingIssues.length === 0) {
     const workspaces = getSlackWorkspaces();
     for (const { token, channel } of workspaces) {
+      const blocks = [...headerBlocks, ...versionBlocks, ...statsBlocks];
+      console.debug(
+        "Slack-Payload (no issues):",
+        JSON.stringify(
+          {
+            channel,
+            text: "API Testbericht – keine neuen Schema-Abweichungen",
+            blocks,
+          },
+          null,
+          2,
+        ),
+      );
       await axios.post("https://slack.com/api/chat.postMessage", {
         channel,
         text: "API Testbericht – keine neuen Schema-Abweichungen",
-        blocks: [...headerBlocks, ...versionBlocks, ...statsBlocks],
+        blocks,
       }, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -135,6 +148,20 @@ export async function sendSlackReport(
         ...chunks[i],
         ...(i === chunks.length - 1 ? statsBlocks : []),
       ];
+      console.debug(
+        "Slack-Payload (chunk",
+        i + 1,
+        "):",
+        JSON.stringify(
+          {
+            channel,
+            text: `API Testbericht – Seite ${i + 1}/${chunks.length}`,
+            blocks,
+          },
+          null,
+          2,
+        ),
+      );
       await axios.post("https://slack.com/api/chat.postMessage", {
         channel,
         text: `API Testbericht – Seite ${i + 1}/${chunks.length}`,
