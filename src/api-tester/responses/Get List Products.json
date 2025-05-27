@@ -1,6 +1,147 @@
 {
   "data": [
     {
+      "id": "1743",
+      "uuid": "01970d22-ba57-7ded-a797-f29170eb7b8f",
+      "name": "7iDP Handschuh Transition;S, grün;",
+      "description": "7iDP Handschuh Transition;S, grün;",
+      "shortDescription": null,
+      "number": "279",
+      "project": {
+        "id": "45",
+        "name": "veloxl_test"
+      },
+      "category": null,
+      "standardSupplier": {
+        "id": "335"
+      },
+      "stockCount": 10,
+      "stockStats": {
+        "purchasedCount": "2.0000",
+        "totalCount": "10.0000",
+        "availableCount": "10.0000",
+        "inProductionCount": "0.0000"
+      },
+      "purchasePriceNet": {
+        "currency": "EUR",
+        "amount": "8.9900"
+      },
+      "purchasePriceGross": {
+        "currency": "EUR",
+        "amount": "10.6981"
+      },
+      "salesPriceNet": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "salesPriceGross": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "shopPriceDisplay": "24.95",
+      "ean": "5055356349322",
+      "manufacturerName": "",
+      "manufacturerNumber": "7308-06-008",
+      "customsTariffNumber": "",
+      "options": [],
+      "selectedOptions": [],
+      "variants": [],
+      "isVariant": false,
+      "variantOf": null,
+      "thumbnailUrl": "https://636a1d639f14e.xentral.biz/index.php?module=artikel&action=thumbnail&id=1743&bildvorschau=17397_100_100",
+      "thumbnailId": "17397",
+      "tags": [],
+      "freeFields": [],
+      "countryOfOrigin": null,
+      "regionOfOrigin": "",
+      "internalComment": "",
+      "measurements": {
+        "weight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "netWeight": {
+          "value": 0,
+          "unit": "kg"
+        },
+        "length": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "width": {
+          "value": 0,
+          "unit": "cm"
+        },
+        "height": {
+          "value": 0,
+          "unit": "cm"
+        }
+      },
+      "minimumOrderQuantity": 0,
+      "minimumStorageQuantity": 0,
+      "salesTax": "standard",
+      "hasBatches": false,
+      "serialNumbersMode": "disabled",
+      "hasBestBeforeDate": false,
+      "hasBillOfMaterials": false,
+      "isAssembledJustInTime": false,
+      "isProductionProduct": false,
+      "isExternallyProduced": false,
+      "allowPurchaseFromAllSuppliers": false,
+      "isDisabled": false,
+      "disabledReason": "",
+      "hidePriceOnDocuments": false,
+      "ageRating": null,
+      "isStockItem": true,
+      "isStockTakingDisabled": false,
+      "hideJustInTimeItemsOnDocuments": false,
+      "isShippingCostsProduct": false,
+      "discount": {
+        "isDiscountProduct": false,
+        "discountPercentage": 0
+      },
+      "stockTaking": {
+        "hasStockTakingValue": false,
+        "stockTakingValue": 0
+      },
+      "calculatedPurchasePrice": {
+        "hasCalculatedPurchasePrice": false,
+        "price": {
+          "amount": "0.0000",
+          "currency": "EUR"
+        }
+      },
+      "unit": {
+        "name": ""
+      },
+      "updatedAt": "2025-05-26T17:15:10+02:00",
+      "textsAndDescriptions": {
+        "inCatalog": false,
+        "primaryLanguage": {
+          "name": "7iDP Handschuh Transition;S, grün;",
+          "shortDescription": "",
+          "description": "7iDP Handschuh Transition;S, grün;",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        },
+        "english": {
+          "name": "",
+          "shortDescription": "",
+          "description": "",
+          "shopDescription": "",
+          "metaTitle": "",
+          "metaDescription": "",
+          "metaKeywords": "",
+          "catalogName": "",
+          "catalogText": ""
+        }
+      }
+    },
+    {
       "id": "1742",
       "uuid": "01970c00-5ff9-7713-92df-e7020dc4bd77",
       "name": "7iDP Handschuh Transition;S, blau;",
@@ -17,7 +158,7 @@
       },
       "stockCount": 5,
       "stockStats": {
-        "purchasedCount": "1.0000",
+        "purchasedCount": "6.0000",
         "totalCount": "5.0000",
         "availableCount": "5.0000",
         "inProductionCount": "0.0000"
@@ -32,11 +173,11 @@
       },
       "salesPriceNet": {
         "currency": "EUR",
-        "amount": "20.9700"
+        "amount": "0.0000"
       },
       "salesPriceGross": {
         "currency": "EUR",
-        "amount": "24.9543"
+        "amount": "0.0000"
       },
       "shopPriceDisplay": "24.95",
       "ean": "5055356349261",
@@ -1276,152 +1417,10 @@
           "catalogText": ""
         }
       }
-    },
-    {
-      "id": "1733",
-      "uuid": "0196d911-3fae-731a-90c6-52a3bfaddc90",
-      "name": "Testprodukt API",
-      "description": "Dieses Produkt wurde über die API erstellt.",
-      "shortDescription": null,
-      "number": "1000021000638",
-      "project": {
-        "id": "3",
-        "name": "Kasse"
-      },
-      "category": {
-        "id": "1",
-        "name": "Handelsware (100000)"
-      },
-      "standardSupplier": null,
-      "stockCount": 0,
-      "stockStats": {
-        "purchasedCount": "0.0000",
-        "totalCount": null,
-        "availableCount": "0.0000",
-        "inProductionCount": "0.0000"
-      },
-      "purchasePriceNet": {
-        "currency": "EUR",
-        "amount": "0.0000"
-      },
-      "purchasePriceGross": {
-        "currency": "EUR",
-        "amount": "0.0000"
-      },
-      "salesPriceNet": {
-        "currency": "EUR",
-        "amount": "0.0000"
-      },
-      "salesPriceGross": {
-        "currency": "EUR",
-        "amount": "0.0000"
-      },
-      "shopPriceDisplay": null,
-      "ean": "1234567890123",
-      "manufacturerName": "",
-      "manufacturerNumber": "",
-      "customsTariffNumber": "12345678",
-      "options": [],
-      "selectedOptions": [],
-      "variants": [],
-      "isVariant": false,
-      "variantOf": null,
-      "thumbnailUrl": null,
-      "thumbnailId": null,
-      "tags": [],
-      "freeFields": [],
-      "countryOfOrigin": null,
-      "regionOfOrigin": "",
-      "internalComment": "",
-      "measurements": {
-        "weight": {
-          "value": 0,
-          "unit": "kg"
-        },
-        "netWeight": {
-          "value": 0,
-          "unit": "kg"
-        },
-        "length": {
-          "value": 0,
-          "unit": "cm"
-        },
-        "width": {
-          "value": 0,
-          "unit": "cm"
-        },
-        "height": {
-          "value": 0,
-          "unit": "cm"
-        }
-      },
-      "minimumOrderQuantity": 0,
-      "minimumStorageQuantity": 0,
-      "salesTax": "standard",
-      "hasBatches": false,
-      "serialNumbersMode": "disabled",
-      "hasBestBeforeDate": false,
-      "hasBillOfMaterials": false,
-      "isAssembledJustInTime": false,
-      "isProductionProduct": false,
-      "isExternallyProduced": false,
-      "allowPurchaseFromAllSuppliers": false,
-      "isDisabled": false,
-      "disabledReason": "",
-      "hidePriceOnDocuments": false,
-      "ageRating": null,
-      "isStockItem": false,
-      "isStockTakingDisabled": false,
-      "hideJustInTimeItemsOnDocuments": false,
-      "isShippingCostsProduct": false,
-      "discount": {
-        "isDiscountProduct": false,
-        "discountPercentage": 0
-      },
-      "stockTaking": {
-        "hasStockTakingValue": false,
-        "stockTakingValue": 0
-      },
-      "calculatedPurchasePrice": {
-        "hasCalculatedPurchasePrice": false,
-        "price": {
-          "amount": "0.0000",
-          "currency": "EUR"
-        }
-      },
-      "unit": {
-        "name": ""
-      },
-      "updatedAt": "2025-05-16T14:54:09+02:00",
-      "textsAndDescriptions": {
-        "inCatalog": false,
-        "primaryLanguage": {
-          "name": "Testprodukt API",
-          "shortDescription": "",
-          "description": "Dieses Produkt wurde über die API erstellt.",
-          "shopDescription": "",
-          "metaTitle": "",
-          "metaDescription": "",
-          "metaKeywords": "",
-          "catalogName": "",
-          "catalogText": ""
-        },
-        "english": {
-          "name": "",
-          "shortDescription": "",
-          "description": "",
-          "shopDescription": "",
-          "metaTitle": "",
-          "metaDescription": "",
-          "metaKeywords": "",
-          "catalogName": "",
-          "catalogText": ""
-        }
-      }
     }
   ],
   "extra": {
-    "totalCount": 1156,
+    "totalCount": 1157,
     "page": {
       "number": 1,
       "size": 10
