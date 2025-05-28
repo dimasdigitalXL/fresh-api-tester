@@ -5,10 +5,9 @@ import { basename, join } from "https://deno.land/std@0.216.0/path/mod.ts";
 import type { EndpointConfig } from "./configLoader.ts";
 import type { RepoInfo, SchemaUpdate } from "./gitPush.ts";
 import { resolveProjectPath } from "./utils.ts";
-// import type { Schema } from "./types.ts";      ← entfällt, war ungenutzt
 import defaultIdsRaw from "../default-ids.json" with { type: "json" };
 import { checkAndUpdateApiVersion } from "./versionChecker.ts";
-import { testEndpoint, TestResult } from "./apiCaller.ts";
+import { testEndpoint, type TestResult } from "./apiCaller.ts";
 import { promptUserForId } from "./promptHelper.ts";
 
 // Map für Default-IDs
@@ -149,9 +148,7 @@ export async function runSingleEndpoint(
     const expectedDir = resolveProjectPath("src", "api-tester", "expected");
 
     let maxV = 0;
-    for await (
-      const file of expandGlob(join(expectedDir, `${key}_v*.json`))
-    ) {
+    for await (const file of expandGlob(join(expectedDir, `${key}_v*.json`))) {
       const m = basename(file.path).match(/_v(\d+)\.json$/);
       if (m) {
         const v = Number(m[1]);

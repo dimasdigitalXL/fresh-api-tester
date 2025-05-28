@@ -27,11 +27,26 @@ export interface TestResult {
 }
 
 /**
+ * Sucht im expected-Ordner nach einer Datei, die mit `key` beginnt.
+ * Gibt den absolute Pfad zurück oder wirft, wenn keine gefunden wurde.
+ */
+async function findExpectedFile(key: string): Promise<string> {
+  const expectedDir = join(Deno.cwd(), "src", "api-tester", "expected");
+  for await (const entry of Deno.readDir(expectedDir)) {
+    if (!entry.isFile) continue;
+    if (entry.name.startsWith(key) && entry.name.endsWith(".json")) {
+      return join(expectedDir, entry.name);
+    }
+  }
+  throw new Error(`Schema nicht gefunden: ${key}`);
+}
+
+/**
  * Ersetzt Platzhalter ${key} in der URL-Vorlage durch Werte aus params.
  * Wirft, wenn ein Platzhalter keinen Wert hat.
  */
 function buildUrl(template: string, params: Record<string, string>): string {
-  return template.replace(/\$\{(\w+)\}/g, (_match, key) => {
+  return template.replace(/\$\{(\w+)\}/g, (_, key) => {
     const val = params[key];
     if (val === undefined) {
       throw new Error(`Kein Wert für URL-Parameter "${key}"`);
@@ -105,32 +120,34 @@ export async function testEndpoint(
   // 5) HTTP-Request ausführen
   const resp = await fetch(url, init);
   result.status = resp.status;
-
-  // **Body nur einmal lesen**: erst als Text, dann JSON versuchen
-  const rawText = await resp.text();
-  let parsed: unknown;
+  let body: unknown;
   try {
-    parsed = JSON.parse(rawText);
+    body = await resp.json();
   } catch {
-    parsed = rawText;
+    body = await resp.text();
   }
-  result.body = parsed;
+  result.body = body;
 
   // 6) Schema-Vergleich
   try {
-    const fsPath = join(
-      Deno.cwd(),
-      "src",
-      "api-tester",
-      "expected",
-      ep.expectedStructure ?? `${key}.json`,
-    );
-    const diff = await analyzeResponse(key, fsPath, parsed);
+    // Wenn in config.json explizit expectedStructure gesetzt ist, verwende es,
+    // sonst suche automatisch nach der passenden Datei
+    const fsPath = ep.expectedStructure
+      ? join(
+        Deno.cwd(),
+        "src",
+        "api-tester",
+        "expected",
+        ep.expectedStructure,
+      )
+      : await findExpectedFile(key);
+
+    const diff = await analyzeResponse(key, fsPath, body);
     result.missingFields = diff.missingFields;
     result.extraFields = diff.extraFields;
     result.typeMismatches = diff.typeMismatches;
     result.actualData = diff.updatedSchema;
-    result.expectedFile = ep.expectedStructure;
+    result.expectedFile = ep.expectedStructure ?? fsPath.split("/").pop();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`⚠️ Schema-Vergleich für "${ep.name}" fehlgeschlagen: ${msg}`);
@@ -141,9 +158,7 @@ export async function testEndpoint(
   if (Deno.env.get("LOCAL_MODE") === "true") {
     const outDir = join(Deno.cwd(), "src", "api-tester", "responses");
     await Deno.mkdir(outDir, { recursive: true });
-    const txt = typeof parsed === "string"
-      ? parsed
-      : JSON.stringify(parsed, null, 2);
+    const txt = typeof body === "string" ? body : JSON.stringify(body, null, 2);
     await Deno.writeTextFile(join(outDir, `${key}.json`), txt);
     console.log(`📝 [LOCAL] Response für "${ep.name}" gespeichert`);
   }
