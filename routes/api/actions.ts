@@ -3,10 +3,9 @@
 import { HandlerContext } from "$fresh/server.ts";
 import { kvInstance } from "../../src/api-tester/core/kv.ts";
 import { getSlackWorkspaces } from "../../src/api-tester/core/slack/slackWorkspaces.ts";
-// Wir importieren direkt runAllTests, damit wir keinen externen HTTP-Call mehr brauchen:
 import { runAllTests } from "../../run-tests.ts";
 
-/** Vereinfachte Typdefinition für Slack-Interaktions-Payload */
+/** Simplified Slack payload */
 interface SlackActionPayload {
   type: string;
   actions?: Array<{ action_id: string; value: string }>;
@@ -25,7 +24,7 @@ interface SlackActionPayload {
   user: { id: string };
 }
 
-/** Verifiziert, dass der Request wirklich von Slack kommt. */
+/** Verifies Slack signature */
 async function verifySlackRequest(
   signingSecret: string,
   timestamp: string,
@@ -61,7 +60,7 @@ export const handler = async (
     params.get("payload") || "{}",
   ) as SlackActionPayload;
 
-  // Workspace anhand Signing-Secret finden
+  // find workspace by signing secret
   const workspaces = getSlackWorkspaces();
   const ws = await Promise.any(
     workspaces.map(async (w) => {
@@ -91,7 +90,7 @@ export const handler = async (
 
   const action = payload.actions?.[0];
 
-  // 1) Button "Einverstanden" → Modal öffnen
+  // 1) Open PIN modal
   if (action?.action_id === "open_pin_modal" && payload.trigger_id) {
     await callSlack("views.open", {
       trigger_id: payload.trigger_id,
@@ -121,9 +120,9 @@ export const handler = async (
     return new Response(null, { status: 200 });
   }
 
-  // 2) Button "Warten" → Approval "waiting" setzen
+  // 2) "Warten"
   if (action?.action_id === "wait_action") {
-    const key = action.value;
+    const key = action.value!;
     const { value: approvalsValue } = await kvInstance.get<
       Record<string, string>
     >(["approvals"]);
@@ -133,7 +132,7 @@ export const handler = async (
     return new Response(null, { status: 200 });
   }
 
-  // 3) Modal-Submission: PIN prüfen und ggf. Approval setzen + Tests triggern
+  // 3) PIN-Submission
   if (
     payload.type === "view_submission" &&
     payload.view?.callback_id === "submit_pin"
@@ -141,8 +140,9 @@ export const handler = async (
     const key = payload.view.private_metadata!;
     const pin = payload.view.state.values.pin_input.pin_value.value;
     const expectedPin = Deno.env.get("SLACK_APPROVE_PIN") ?? "";
+
     if (pin === expectedPin) {
-      // a) Approval in KV setzen
+      // a) Approval setzen
       const { value: approvalsValue } = await kvInstance.get<
         Record<string, string>
       >(["approvals"]);
@@ -150,14 +150,19 @@ export const handler = async (
       approvals[key] = "approved";
       await kvInstance.set(["approvals"], approvals);
 
-      // b) Ephemeral-Feedback an den Nutzer
+      // b) Ephemeral feedback
       await callSlack("chat.postEphemeral", {
         channel: key,
         user: payload.user.id,
         text: `✅ Freigabe für \`${key}\` erfolgreich.`,
       });
 
-      // c) Tests direkt im Prozess starten (ohne externen HTTP-Call)
+      // c) Pending-Schema löschen
+      await kvInstance.delete(["schema-update-pending", key]);
+      // d) rawBlocks löschen (falls noch da)
+      await kvInstance.delete(["rawBlocks", key]);
+
+      // e) Tests direkt im Prozess starten
       runAllTests().catch((err) =>
         console.error("❌ Fehler beim Ausführen der Tests:", err)
       );
@@ -165,7 +170,7 @@ export const handler = async (
       return new Response(null, { status: 200 });
     }
 
-    // PIN falsch → Fehler im Modal anzeigen
+    // PIN falsch → Error im Modal
     return new Response(
       JSON.stringify({
         response_action: "errors",
