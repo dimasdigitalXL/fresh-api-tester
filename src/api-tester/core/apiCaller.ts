@@ -4,6 +4,7 @@ import { join } from "https://deno.land/std@0.216.0/path/mod.ts";
 import type { EndpointConfig } from "./configLoader.ts";
 import { analyzeResponse } from "./structureAnalyzer.ts";
 import type { Schema } from "./types.ts";
+import { resolveProjectPath } from "./utils.ts";
 
 /** Ergebnis eines API-Tests inklusive Schema-Abgleich. */
 export interface TestResult {
@@ -20,9 +21,9 @@ export interface TestResult {
   actualData?: Schema;
 }
 
-/** Sucht im expected-Ordner nach einer Datei, die mit `key` beginnt. */
+/** Findet eine Datei im `expected`-Ordner, die mit `key` beginnt. */
 async function findExpectedFile(key: string): Promise<string> {
-  const expectedDir = join(Deno.cwd(), "src", "api-tester", "expected");
+  const expectedDir = resolveProjectPath("src", "api-tester", "expected");
   for await (const entry of Deno.readDir(expectedDir)) {
     if (!entry.isFile) continue;
     if (entry.name.startsWith(key) && entry.name.endsWith(".json")) {
@@ -32,7 +33,7 @@ async function findExpectedFile(key: string): Promise<string> {
   throw new Error(`Schema nicht gefunden: ${key}`);
 }
 
-/** Ersetzt Platzhalter ${key} in der URL-Vorlage. */
+/** Ersetzt Platzhalter `${foo}` in der URL durch Werte aus `params`. */
 function buildUrl(template: string, params: Record<string, string>): string {
   return template.replace(/\$\{(\w+)\}/g, (_, key) => {
     const val = params[key];
@@ -44,8 +45,8 @@ function buildUrl(template: string, params: Record<string, string>): string {
 }
 
 /**
- * Führt den HTTP-Request durch, parst die Antwort und vergleicht sie
- * mit dem erwarteten Schema.
+ * Führt den HTTP-Request durch, liest den Body **einmalig** als Text
+ * und parst ihn dann. Anschließend Schema-Vergleich.
  */
 export async function testEndpoint(
   ep: EndpointConfig,
@@ -63,7 +64,7 @@ export async function testEndpoint(
   }
 
   // 2) Query-Parameter anhängen
-  if (ep.query && Object.keys(ep.query).length) {
+  if (ep.query && Object.keys(ep.query).length > 0) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(ep.query)) {
       qs.append(k, String(v));
@@ -71,24 +72,25 @@ export async function testEndpoint(
     url += url.includes("?") ? `&${qs}` : `?${qs}`;
   }
 
-  // 3) Fetch-Optionen
-  const headers = ep.headers ?? {};
+  // 3) Request-Init zusammenstellen
   const init: RequestInit & { body?: string } = {
     method: ep.method,
-    headers,
+    headers: ep.headers ?? {},
   };
 
-  // Body aus Datei
   if (ep.bodyFile) {
-    const bf = join(Deno.cwd(), ep.bodyFile);
     try {
-      init.body = await Deno.readTextFile(bf);
+      init.body = await Deno.readTextFile(resolveProjectPath(ep.bodyFile));
     } catch (e: unknown) {
-      console.warn(`⚠️ bodyFile "${ep.bodyFile}" nicht geladen: ${e}`);
+      console.warn(
+        `⚠️ bodyFile "${ep.bodyFile}" für "${ep.name}" nicht geladen: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
     }
   }
 
-  // 4) Result initialisieren
+  // 4) Result-Objekt vorbereiten
   const result: TestResult = {
     endpointName: ep.name,
     method: ep.method,
@@ -99,14 +101,11 @@ export async function testEndpoint(
     missingFields: [],
     extraFields: [],
     typeMismatches: [],
-    actualData: undefined,
   };
 
-  // 5) HTTP-Request
+  // 5) Fetch ausführen und Body **einmal** lesen
   const resp = await fetch(url, init);
   result.status = resp.status;
-
-  // ✨ Einmal als Text lesen und dann JSON.parse vs. Rohtext
   const raw = await resp.text();
   let body: unknown;
   try {
@@ -119,7 +118,12 @@ export async function testEndpoint(
   // 6) Schema-Vergleich
   try {
     const fsPath = ep.expectedStructure
-      ? join(Deno.cwd(), "src", "api-tester", "expected", ep.expectedStructure)
+      ? resolveProjectPath(
+        "src",
+        "api-tester",
+        "expected",
+        ep.expectedStructure,
+      )
       : await findExpectedFile(key);
 
     const diff = await analyzeResponse(key, fsPath, body);
@@ -137,9 +141,9 @@ export async function testEndpoint(
     result.expectedMissing = true;
   }
 
-  // 7) LOCAL_MODE → Response speichern
+  // 7) LOCAL_MODE → Roh-Antwort speichern
   if (Deno.env.get("LOCAL_MODE") === "true") {
-    const outDir = join(Deno.cwd(), "src", "api-tester", "responses");
+    const outDir = resolveProjectPath("src", "api-tester", "responses");
     await Deno.mkdir(outDir, { recursive: true });
     const txt = typeof body === "string" ? body : JSON.stringify(body, null, 2);
     await Deno.writeTextFile(join(outDir, `${key}.json`), txt);
