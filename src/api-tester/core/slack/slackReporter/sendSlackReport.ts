@@ -50,10 +50,12 @@ export async function sendSlackReport(
     r.typeMismatches.length > 0
   );
 
-  // 2) Approval-Status aus KV
+  // 2) Approval-Status aus KV laden
   const { value: approvalsValue } = await kvInstance.get<
     Record<string, string>
-  >(["approvals"]);
+  >(
+    ["approvals"],
+  );
   const approvals = approvalsValue ?? {};
 
   // 3) Nur die mit Status "pending"
@@ -62,7 +64,7 @@ export async function sendSlackReport(
     return approvals[key] === "pending";
   });
 
-  // 4) Header, Version & Stats
+  // 4) Header-, Versions- und Statistik-Blöcke vorbereiten
   const headerBlocks = renderHeaderBlock(
     new Date().toLocaleDateString("de-DE"),
   ) as Block[];
@@ -77,7 +79,7 @@ export async function sendSlackReport(
     allIssues.length,
   ) as Block[];
 
-  //  ← keine offenen Issues?
+  // → Keine offenen Issues? Dann Nur-Statistik senden
   if (pendingIssues.length === 0) {
     for (const { token, channel } of getSlackWorkspaces()) {
       const blocks: Block[] = [
@@ -100,18 +102,18 @@ export async function sendSlackReport(
     return;
   }
 
-  // 5) Baue alle Issue-Blocks
-  const bodyBlocks: Block[] = [];
+  // 5) Baue für jede offene Issue die Slack-Blöcke
+  const allBodyBlocks: Block[] = [];
   const rawBlocksMap = new Map<string, Block[]>();
 
   pendingIssues.forEach((r, idx) => {
     const key = r.endpointName.replace(/\s+/g, "_");
     const blocks: Block[] = [];
 
-    // A) Überschrift mit durchnummeriertem Emoji
+    // A) Section mit durchnummeriertem Emoji
     const icon = r.expectedMissing || r.missingFields.length > 0
       ? "🔴"
-      : r.extraFields.length > 0 || r.typeMismatches.length > 0
+      : (r.extraFields.length > 0 || r.typeMismatches.length > 0)
       ? "🟠"
       : "⚪️";
 
@@ -123,7 +125,7 @@ export async function sendSlackReport(
       },
     });
 
-    // B) Details
+    // B) Kontext-Details
     if (r.expectedMissing) {
       blocks.push({
         type: "context",
@@ -175,7 +177,7 @@ export async function sendSlackReport(
       }
     }
 
-    // C) Divider + Buttons + Divider
+    // C) Trennlinie, Aktionen und Trennlinie
     blocks.push({ type: "divider" });
     blocks.push({
       type: "actions",
@@ -199,25 +201,25 @@ export async function sendSlackReport(
     });
     blocks.push({ type: "divider" });
 
-    bodyBlocks.push(...blocks);
+    allBodyBlocks.push(...blocks);
     rawBlocksMap.set(key, blocks);
   });
 
-  // 6) Paginierung
+  // 6) Paginierung der Body-Blöcke
   const headerCount = headerBlocks.length + versionBlocks.length;
   const footerCount = statsBlocks.length;
   const maxPerPage = Math.max(
     1,
     MAX_BLOCKS_PER_MESSAGE - headerCount - footerCount,
   );
-  const pages = chunkArray(bodyBlocks, maxPerPage);
+  const pages = chunkArray(allBodyBlocks, maxPerPage);
 
-  // 7) Roh-Blöcke fürs Modal in KV speichern
+  // 7) Roh-Version für Modal in KV speichern
   for (const [key, blks] of rawBlocksMap) {
     await kvInstance.set(["rawBlocks", key], blks);
   }
 
-  // 8) Seitenweise versenden
+  // 8) Jede Seite an alle Workspaces senden
   for (const { token, channel } of getSlackWorkspaces()) {
     for (let i = 0; i < pages.length; i++) {
       const blocks: Block[] = [

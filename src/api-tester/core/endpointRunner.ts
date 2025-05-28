@@ -5,7 +5,7 @@ import { basename, join } from "https://deno.land/std@0.216.0/path/mod.ts";
 import type { EndpointConfig } from "./configLoader.ts";
 import type { RepoInfo, SchemaUpdate } from "./gitPush.ts";
 import { resolveProjectPath } from "./utils.ts";
-import type { Schema } from "./types.ts";
+// import type { Schema } from "./types.ts";      ← entfällt, war ungenutzt
 import defaultIdsRaw from "../default-ids.json" with { type: "json" };
 import { checkAndUpdateApiVersion } from "./versionChecker.ts";
 import { testEndpoint, TestResult } from "./apiCaller.ts";
@@ -13,9 +13,9 @@ import { promptUserForId } from "./promptHelper.ts";
 
 // Map für Default-IDs
 type DefaultIds = Record<string, string | Record<string, unknown>>;
-const _defaultIds = defaultIdsRaw as DefaultIds; // wurde umbenannt, um no-unused-vars zu vermeiden
+const _defaultIds = defaultIdsRaw as DefaultIds;
 
-/** Info, wenn eine neue API-Version erkannt wurde */
+/** Information über neue API-Version */
 export interface VersionUpdate {
   name: string;
   url: string;
@@ -23,61 +23,80 @@ export interface VersionUpdate {
 }
 
 /**
- * Führt den Test für einen einzelnen Endpoint aus.
- * Bei Schema-Drift legt er eine neue Datei `_vN.json`
- * in `src/api-tester/expected` an und liefert sie via schemaUpdates zurück.
+ * Baut eine finale URL, indem Platzhalter ${KEY} ersetzt werden:
+ * - Erst aus dynamicParamsOverride
+ * - sonst aus ENV
+ * Wirft, wenn kein Wert gefunden wurde.
+ */
+function buildUrl(template: string, params: Record<string, string>): string {
+  return template.replace(/\$\{([^}]+)\}/g, (_m, key) => {
+    if (params[key] != null) {
+      return encodeURIComponent(params[key]);
+    }
+    const envVal = Deno.env.get(key);
+    if (envVal) {
+      return encodeURIComponent(envVal);
+    }
+    throw new Error(`Kein Wert für URL-Platzhalter "${key}"`);
+  });
+}
+
+/**
+ * Führt alle Tests für einen Endpoint durch:
+ * 1) Dynamische Pfad-Parameter ermitteln
+ * 2) Neue API-Version erkennen
+ * 3) URL interpolieren und Test ausführen
+ * 4) Bei Schema-Drift neue _vN.json anlegen
  */
 export async function runSingleEndpoint(
   endpoint: EndpointConfig,
-  config: { endpoints: EndpointConfig[]; gitRepo: RepoInfo },
+  _config: { endpoints: EndpointConfig[]; gitRepo: RepoInfo },
   versionUpdates: VersionUpdate[],
   schemaUpdates: SchemaUpdate[],
   dynamicParamsOverride: Record<string, string> = {},
 ): Promise<TestResult | null> {
   // ─── 1) Dynamische Pfad-Parameter ───────────────────────────
   if (endpoint.requiresId) {
-    const keyName = endpoint.name.replace(/\s+/g, "_");
-    const defRaw = _defaultIds[keyName] ?? _defaultIds[endpoint.name];
+    const key = endpoint.name.replace(/\s+/g, "_");
+    const defRaw = _defaultIds[key] ?? _defaultIds[endpoint.name];
     const isObj = defRaw !== null && typeof defRaw === "object";
-    const params = isObj
+    const keys = isObj
       ? Object.keys(defRaw as Record<string, unknown>)
       : ["id"];
 
-    for (const paramKey of params) {
-      if (!dynamicParamsOverride[paramKey]) {
+    for (const k of keys) {
+      if (!dynamicParamsOverride[k]) {
         if (!isObj && defRaw != null) {
           dynamicParamsOverride.id = String(defRaw);
           console.log(`🟢 Verwende gespeicherte id: ${defRaw}`);
         } else if (
           isObj &&
-          (defRaw as Record<string, unknown>)[paramKey] != null
+          (defRaw as Record<string, unknown>)[k] != null
         ) {
-          dynamicParamsOverride[paramKey] = String(
-            (defRaw as Record<string, unknown>)[paramKey],
+          dynamicParamsOverride[k] = String(
+            (defRaw as Record<string, unknown>)[k],
           );
           console.log(
-            `🟢 Verwende gespeicherte ${paramKey}: ${
-              dynamicParamsOverride[paramKey]
-            }`,
+            `🟢 Verwende gespeicherte ${k}: ${dynamicParamsOverride[k]}`,
           );
         } else {
           const ans = await promptUserForId(
-            `🟡 Bitte Wert für "${paramKey}" bei "${endpoint.name}" angeben: `,
+            `🟡 Bitte Wert für "${k}" bei "${endpoint.name}" angeben: `,
           );
           if (!ans) {
             console.warn(
-              `⚠️ Kein Wert für "${paramKey}", überspringe "${endpoint.name}".`,
+              `⚠️ Kein Wert für "${k}", überspringe "${endpoint.name}".`,
             );
             return null;
           }
-          dynamicParamsOverride[paramKey] = ans;
-          console.log(`🟢 Nutzer-Eingabe ${paramKey}: ${ans}`);
+          dynamicParamsOverride[k] = ans;
+          console.log(`🟢 Nutzer-Eingabe ${k}: ${ans}`);
         }
       }
     }
   }
 
-  // ─── 2) API-Versionserkennung ───────────────────────────────
+  // ─── 2) Neue API-Version erkennen ───────────────────────────
   const versionInfo = await checkAndUpdateApiVersion(
     endpoint,
     dynamicParamsOverride,
@@ -88,29 +107,31 @@ export async function runSingleEndpoint(
       url: versionInfo.url,
       expectedStructure: endpoint.expectedStructure,
     });
-    // in-memory-Konfiguration aktualisieren
-    const idx = config.endpoints.findIndex((e) => e.name === endpoint.name);
-    if (idx !== -1) {
-      config.endpoints[idx] = versionInfo as EndpointConfig;
-    }
     console.log(`🔄 Neue API-Version erkannt: ${versionInfo.url}`);
     return null;
   }
 
-  // ─── 3) Struktur- und Typ-Vergleich ─────────────────────────
-  const result = await testEndpoint(
-    versionInfo as EndpointConfig,
-    dynamicParamsOverride,
-  );
+  // ─── 3) URL interpolieren & Test ausführen ──────────────────
+  let finalUrl: string;
+  try {
+    finalUrl = buildUrl(versionInfo.url, dynamicParamsOverride);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`❌ URL-Build für "${endpoint.name}" fehlgeschlagen: ${msg}`);
+    return null;
+  }
+
+  const toTest: EndpointConfig = { ...versionInfo, url: finalUrl };
+  const result = await testEndpoint(toTest, dynamicParamsOverride);
   const { missingFields, extraFields, typeMismatches, actualData } = result;
 
-  if (missingFields.length) {
+  if (missingFields.length > 0) {
     console.log(`❌ Fehlende Felder: ${missingFields.join(", ")}`);
   }
-  if (extraFields.length) {
+  if (extraFields.length > 0) {
     console.log(`➕ Neue Felder: ${extraFields.join(", ")}`);
   }
-  if (typeMismatches.length) {
+  if (typeMismatches.length > 0) {
     console.log("⚠️ Typabweichungen:");
     for (const tm of typeMismatches) {
       console.log(
@@ -119,35 +140,34 @@ export async function runSingleEndpoint(
     }
   }
 
-  // ─── 4) Schema-Drift: versionierte Datei anlegen ────────────
+  // ─── 4) Schema-Drift → neue Datei versionieren ─────────────
   const hasDrift = missingFields.length > 0 ||
     extraFields.length > 0 ||
     typeMismatches.length > 0;
-  if (hasDrift) {
+  if (hasDrift && actualData) {
     const key = endpoint.name.replace(/\s+/g, "_");
     const expectedDir = resolveProjectPath("src", "api-tester", "expected");
 
-    // a) vorhandene Versionen (_vN.json) ermitteln
-    let maxVersion = 0;
-    const globPattern = join(expectedDir, `${key}_v*.json`);
-    for await (const file of expandGlob(globPattern)) {
+    let maxV = 0;
+    for await (
+      const file of expandGlob(join(expectedDir, `${key}_v*.json`))
+    ) {
       const m = basename(file.path).match(/_v(\d+)\.json$/);
       if (m) {
         const v = Number(m[1]);
-        if (!isNaN(v) && v > maxVersion) maxVersion = v;
+        if (!isNaN(v) && v > maxV) maxV = v;
       }
     }
 
-    // b) nächster Versions-Suffix
-    const targetName = `${key}_v${maxVersion + 1}.json`;
-    const fsPath = join(expectedDir, targetName);
+    const nextName = `${key}_v${maxV + 1}.json`;
+    const fsPath = join(expectedDir, nextName);
 
     schemaUpdates.push({
       key,
       fsPath,
-      newSchema: actualData as Schema,
+      newSchema: actualData,
     });
-    console.log(`🔖 Neuer Schema-Entwurf für „${key}“ angelegt: ${targetName}`);
+    console.log(`🔖 Neuer Schema-Entwurf für "${key}" angelegt: ${nextName}`);
   }
 
   return result;
