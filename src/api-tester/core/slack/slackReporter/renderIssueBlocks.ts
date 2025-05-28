@@ -1,19 +1,22 @@
 // src/api-tester/core/slack/slackReporter/renderIssueBlocks.ts
 
 import type { Block } from "./renderHeaderBlock.ts";
-import type { TestResult } from "../../apiCaller.ts";
 
-type Issue = Pick<
-  TestResult,
-  | "endpointName"
-  | "method"
-  | "missingFields"
-  | "extraFields"
-  | "typeMismatches"
-  | "isCritical"
-  | "expectedMissing"
-  | "expectedFile"
->;
+/**
+ * Ein einzelnes Issue, das gerendert wird.
+ * Definiert hier explizit alle benötigten Felder,
+ * unabhängig von TestResult.
+ */
+export interface Issue {
+  endpointName: string;
+  method: string;
+  missingFields: string[];
+  extraFields: string[];
+  typeMismatches: { path: string; expected: string; actual: string }[];
+  isCritical: boolean;
+  expectedMissing: boolean;
+  expectedFile?: string;
+}
 
 export function renderIssueBlocks(issues: Issue[]): Block[] {
   return issues.flatMap((issue, index) => {
@@ -23,7 +26,7 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
     const extra = issue.extraFields.map((e) =>
       e.replace(/^data(\[0\])?\./, "")
     );
-    const types = (issue.typeMismatches || []).map(
+    const types = issue.typeMismatches.map(
       (m) =>
         `• ${
           m.path.replace(/^data(\[0\])?\./, "")
@@ -43,7 +46,7 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
       },
     ];
 
-    // Spezialfall: erwartete Datei fehlt
+    // Wenn das erwartete Schema fehlt
     if (issue.expectedMissing) {
       blocks.push({
         type: "context",
@@ -62,7 +65,6 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
           }],
         });
       }
-
       if (extra.length) {
         blocks.push({
           type: "context",
@@ -72,7 +74,6 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
           }],
         });
       }
-
       if (types.length) {
         blocks.push({
           type: "context",
@@ -84,7 +85,7 @@ export function renderIssueBlocks(issues: Issue[]): Block[] {
       }
     }
 
-    // Buttons falls nötig
+    // Buttons für Approval / Warten
     if (
       issue.expectedMissing ||
       issue.isCritical ||

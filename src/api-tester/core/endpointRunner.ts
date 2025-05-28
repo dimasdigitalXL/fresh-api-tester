@@ -13,7 +13,7 @@ import { promptUserForId } from "./promptHelper.ts";
 
 // Map für Default-IDs
 type DefaultIds = Record<string, string | Record<string, unknown>>;
-const defaultIds = defaultIdsRaw as DefaultIds;
+const _defaultIds = defaultIdsRaw as DefaultIds; // wurde umbenannt, um no-unused-vars zu vermeiden
 
 /** Info, wenn eine neue API-Version erkannt wurde */
 export interface VersionUpdate {
@@ -37,39 +37,41 @@ export async function runSingleEndpoint(
   // ─── 1) Dynamische Pfad-Parameter ───────────────────────────
   if (endpoint.requiresId) {
     const keyName = endpoint.name.replace(/\s+/g, "_");
-    const defRaw = defaultIds[keyName] ?? defaultIds[endpoint.name];
+    const defRaw = _defaultIds[keyName] ?? _defaultIds[endpoint.name];
     const isObj = defRaw !== null && typeof defRaw === "object";
     const params = isObj
       ? Object.keys(defRaw as Record<string, unknown>)
       : ["id"];
 
-    for (const key of params) {
-      if (!dynamicParamsOverride[key]) {
+    for (const paramKey of params) {
+      if (!dynamicParamsOverride[paramKey]) {
         if (!isObj && defRaw != null) {
           dynamicParamsOverride.id = String(defRaw);
           console.log(`🟢 Verwende gespeicherte id: ${defRaw}`);
         } else if (
           isObj &&
-          (defRaw as Record<string, unknown>)[key] != null
+          (defRaw as Record<string, unknown>)[paramKey] != null
         ) {
-          dynamicParamsOverride[key] = String(
-            (defRaw as Record<string, unknown>)[key],
+          dynamicParamsOverride[paramKey] = String(
+            (defRaw as Record<string, unknown>)[paramKey],
           );
           console.log(
-            `🟢 Verwende gespeicherte ${key}: ${dynamicParamsOverride[key]}`,
+            `🟢 Verwende gespeicherte ${paramKey}: ${
+              dynamicParamsOverride[paramKey]
+            }`,
           );
         } else {
           const ans = await promptUserForId(
-            `🟡 Bitte Wert für "${key}" bei "${endpoint.name}" angeben: `,
+            `🟡 Bitte Wert für "${paramKey}" bei "${endpoint.name}" angeben: `,
           );
           if (!ans) {
             console.warn(
-              `⚠️ Kein Wert für "${key}", überspringe "${endpoint.name}".`,
+              `⚠️ Kein Wert für "${paramKey}", überspringe "${endpoint.name}".`,
             );
             return null;
           }
-          dynamicParamsOverride[key] = ans;
-          console.log(`🟢 Nutzer-Eingabe ${key}: ${ans}`);
+          dynamicParamsOverride[paramKey] = ans;
+          console.log(`🟢 Nutzer-Eingabe ${paramKey}: ${ans}`);
         }
       }
     }
@@ -99,7 +101,6 @@ export async function runSingleEndpoint(
   const result = await testEndpoint(
     versionInfo as EndpointConfig,
     dynamicParamsOverride,
-    config,
   );
   const { missingFields, extraFields, typeMismatches, actualData } = result;
 
@@ -124,7 +125,6 @@ export async function runSingleEndpoint(
     typeMismatches.length > 0;
   if (hasDrift) {
     const key = endpoint.name.replace(/\s+/g, "_");
-    // korrigierter Pfad ins expected-Verzeichnis
     const expectedDir = resolveProjectPath("src", "api-tester", "expected");
 
     // a) vorhandene Versionen (_vN.json) ermitteln
