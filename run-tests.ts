@@ -31,7 +31,10 @@ export async function runAllTests({ dryRun = false }: RunOptions = {}) {
 
   // 1) Config + GitRepo laden
   const cfg = await loadConfig();
-  console.log("🔧 Geladene Endpoints:", cfg.endpoints.map((e) => e.name));
+  console.log(
+    "🔧 Geladene Endpoints:",
+    cfg.endpoints.map((e) => e.name),
+  );
 
   // 2) Arrays für Version- und Schema-Updates
   const versionUpdates: VersionUpdate[] = [];
@@ -40,8 +43,15 @@ export async function runAllTests({ dryRun = false }: RunOptions = {}) {
 
   // 3) Jeden Endpoint testen
   for (const ep of cfg.endpoints) {
-    const res = await runSingleEndpoint(ep, cfg, versionUpdates, schemaUpdates);
-    if (res) results.push(res);
+    const res = await runSingleEndpoint(
+      ep,
+      cfg,
+      versionUpdates,
+      schemaUpdates,
+    );
+    if (res) {
+      results.push(res);
+    }
   }
 
   console.log(`▶️ Tests abgeschlossen. Dry-Run=${dryRun}`);

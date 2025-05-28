@@ -3,10 +3,10 @@
 import { HandlerContext } from "$fresh/server.ts";
 import { kvInstance } from "../../src/api-tester/core/kv.ts";
 import { getSlackWorkspaces } from "../../src/api-tester/core/slack/slackWorkspaces.ts";
+// Wir importieren direkt runAllTests, damit wir keinen externen HTTP-Call mehr brauchen:
+import { runAllTests } from "../../run-tests.ts";
 
-/**
- * Vereinfachte Typdefinition für Slack-Interaktions-Payload
- */
+/** Vereinfachte Typdefinition für Slack-Interaktions-Payload */
 interface SlackActionPayload {
   type: string;
   actions?: Array<{ action_id: string; value: string }>;
@@ -25,9 +25,7 @@ interface SlackActionPayload {
   user: { id: string };
 }
 
-/**
- * Verifiziert, dass der Request wirklich von Slack kommt.
- */
+/** Verifiziert, dass der Request wirklich von Slack kommt. */
 async function verifySlackRequest(
   signingSecret: string,
   timestamp: string,
@@ -128,9 +126,7 @@ export const handler = async (
     const key = action.value;
     const { value: approvalsValue } = await kvInstance.get<
       Record<string, string>
-    >([
-      "approvals",
-    ]);
+    >(["approvals"]);
     const approvals = approvalsValue ?? {};
     approvals[key] = "waiting";
     await kvInstance.set(["approvals"], approvals);
@@ -149,9 +145,7 @@ export const handler = async (
       // a) Approval in KV setzen
       const { value: approvalsValue } = await kvInstance.get<
         Record<string, string>
-      >([
-        "approvals",
-      ]);
+      >(["approvals"]);
       const approvals = approvalsValue ?? {};
       approvals[key] = "approved";
       await kvInstance.set(["approvals"], approvals);
@@ -163,14 +157,10 @@ export const handler = async (
         text: `✅ Freigabe für \`${key}\` erfolgreich.`,
       });
 
-      // c) Tests sofort erneut auslösen
-      const runUrl = new URL("/api/run-tests", req.url).toString();
-      // feuert asynchron den Batch-Run ab
-      fetch(runUrl).then((r) => {
-        if (!r.ok) {
-          console.error("Fehler beim Triggern von run-tests:", r.status);
-        }
-      });
+      // c) Tests direkt im Prozess starten (ohne externen HTTP-Call)
+      runAllTests().catch((err) =>
+        console.error("❌ Fehler beim Ausführen der Tests:", err)
+      );
 
       return new Response(null, { status: 200 });
     }
