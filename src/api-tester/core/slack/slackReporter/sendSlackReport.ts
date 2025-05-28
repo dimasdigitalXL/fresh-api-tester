@@ -42,18 +42,25 @@ export async function sendSlackReport(
   // 2) Lese aktuellen Approval-Status aus KV
   const { value: approvalsValue } = await kvInstance.get<
     Record<string, string>
-  >(
-    ["approvals"],
-  );
+  >(["approvals"]);
   const approvals = approvalsValue ?? {};
 
-  // 3) Filtere nur die, die noch "pending" sind
+  // 3) Neu entdeckte Issues initial auf "pending" setzen
+  for (const r of allIssues) {
+    const key = r.endpointName.replace(/\s+/g, "_");
+    if (!(key in approvals)) {
+      approvals[key] = "pending";
+    }
+  }
+  await kvInstance.set(["approvals"], approvals);
+
+  // 4) Nur noch die tatsächlich pending-Issues anzeigen
   const pendingIssues = allIssues.filter((r) => {
     const key = r.endpointName.replace(/\s+/g, "_");
     return approvals[key] === "pending";
   });
 
-  // 4) Bausteine bauen
+  // 5) Header-, Version- und Statistik-Blöcke bauen
   const headerBlocks = renderHeaderBlock(
     new Date().toLocaleDateString("de-DE"),
   );
@@ -67,7 +74,7 @@ export async function sendSlackReport(
     allIssues.length,
   );
 
-  // 5) Wenn keine pending-Issues übrig sind → No-Issues-Report
+  // 6) Kein pending → kurzer Report ohne Buttons
   if (pendingIssues.length === 0) {
     const workspaces = getSlackWorkspaces();
     for (const { token, channel } of workspaces) {
@@ -87,35 +94,29 @@ export async function sendSlackReport(
     return;
   }
 
-  // 6) Blocks für fehlende Schema-Dateien
-  const missingSchemaBlocks = pendingIssues
-    .filter((r) => r.expectedMissing)
-    .map((r) => ({
-      type: "section" as const,
-      text: {
-        type: "mrkdwn" as const,
-        text:
-          `:warning: Erwartetes Schema *${r.expectedFile}* für Endpoint *${r.endpointName}* fehlt.`,
-      },
+  // 7) Baue für jede pending-Issue die Blöcke (inkl. Buttons)
+  const issueBlocks = pendingIssues.flatMap((res) => {
+    const suffix = res.endpointName.replace(/\s+/g, "_");
+    return renderIssueBlocks([res]).map((blk) => ({
+      ...blk,
+      block_id: typeof blk.block_id === "string"
+        ? `${blk.block_id}_${suffix}`
+        : blk.block_id,
     }));
-
-  // 7) Einmalig alle Issue-Blocks rendern, damit Index korrekt ist
-  const rawIssueBlocks = renderIssueBlocks(pendingIssues);
-
-  // 8) Unique block_id-Suffix anhängen (Action-Buttons)
-  const issueBlocks = rawIssueBlocks.map((blk) => {
-    if (blk.type === "actions" && typeof blk.block_id === "string") {
-      const suffix = blk.block_id.replace(/^decision_buttons_/, "");
-      return {
-        ...blk,
-        block_id: `${blk.block_id}_${suffix}`,
-      };
-    }
-    return blk;
   });
 
-  // 9) Chunks bauen
-  const bodyBlocks = [...missingSchemaBlocks, ...issueBlocks];
+  // 8) Speichere rawBlocks (für das PIN-Modal), ohne das block_id-Feld
+  for (const res of pendingIssues) {
+    const key = res.endpointName.replace(/\s+/g, "_");
+    const raw = renderIssueBlocks([res]).map((blk) => {
+      const { block_id: _block_id, ...rest } = blk as Record<string, unknown>;
+      return rest;
+    });
+    await kvInstance.set(["rawBlocks", key], raw);
+  }
+
+  // 9) Nachrichten in handliche Chunk-Größen aufteilen und senden
+  const bodyBlocks = issueBlocks;
   const headerCount = headerBlocks.length + versionBlocks.length;
   const footerCount = statsBlocks.length;
   const maxPerChunk = Math.max(
@@ -124,14 +125,6 @@ export async function sendSlackReport(
   );
   const chunks = chunkArray(bodyBlocks, maxPerChunk);
 
-  // 10) rawBlocks für Modal-Submission speichern
-  for (const res of pendingIssues) {
-    const key = res.endpointName.replace(/\s+/g, "_");
-    const raw = renderIssueBlocks([res]);
-    await kvInstance.set(["rawBlocks", key], raw);
-  }
-
-  // 11) Chunks an Slack senden
   const workspaces = getSlackWorkspaces();
   for (const { token, channel } of workspaces) {
     for (let i = 0; i < chunks.length; i++) {
