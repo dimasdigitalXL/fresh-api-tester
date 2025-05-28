@@ -5,31 +5,22 @@ import type { EndpointConfig } from "./configLoader.ts";
 import { analyzeResponse } from "./structureAnalyzer.ts";
 import type { Schema } from "./types.ts";
 
-/**
- * Ergebnis eines API-Tests inklusive Schema-Abgleich.
- */
+/** Ergebnis eines API-Tests inklusive Schema-Abgleich. */
 export interface TestResult {
   endpointName: string;
   method: string;
   url: string;
   status: number;
   body: unknown;
-
   expectedMissing: boolean;
   expectedFile?: string;
-
   missingFields: string[];
   extraFields: string[];
   typeMismatches: { path: string; expected: string; actual: string }[];
-
-  /** transformiertes Schema (für Versionierung) */
   actualData?: Schema;
 }
 
-/**
- * Sucht im expected-Ordner nach einer Datei, die mit `key` beginnt.
- * Gibt den absolute Pfad zurück oder wirft, wenn keine gefunden wurde.
- */
+/** Sucht im expected-Ordner nach einer Datei, die mit `key` beginnt. */
 async function findExpectedFile(key: string): Promise<string> {
   const expectedDir = join(Deno.cwd(), "src", "api-tester", "expected");
   for await (const entry of Deno.readDir(expectedDir)) {
@@ -41,10 +32,7 @@ async function findExpectedFile(key: string): Promise<string> {
   throw new Error(`Schema nicht gefunden: ${key}`);
 }
 
-/**
- * Ersetzt Platzhalter ${key} in der URL-Vorlage durch Werte aus params.
- * Wirft, wenn ein Platzhalter keinen Wert hat.
- */
+/** Ersetzt Platzhalter ${key} in der URL-Vorlage. */
 function buildUrl(template: string, params: Record<string, string>): string {
   return template.replace(/\$\{(\w+)\}/g, (_, key) => {
     const val = params[key];
@@ -65,7 +53,7 @@ export async function testEndpoint(
 ): Promise<TestResult> {
   const key = ep.name.replace(/\s+/g, "_");
 
-  // 1) URL zusammenbauen: Platzhalter ersetzen
+  // 1) URL zusammenbauen
   let url: string;
   try {
     url = buildUrl(ep.url, dynamicParamsOverride);
@@ -75,7 +63,7 @@ export async function testEndpoint(
   }
 
   // 2) Query-Parameter anhängen
-  if (ep.query && Object.keys(ep.query).length > 0) {
+  if (ep.query && Object.keys(ep.query).length) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(ep.query)) {
       qs.append(k, String(v));
@@ -83,27 +71,24 @@ export async function testEndpoint(
     url += url.includes("?") ? `&${qs}` : `?${qs}`;
   }
 
-  // 3) Fetch-Optionen zusammenstellen
+  // 3) Fetch-Optionen
   const headers = ep.headers ?? {};
   const init: RequestInit & { body?: string } = {
     method: ep.method,
     headers,
   };
 
-  // optionaler Request-Body aus Datei
+  // Body aus Datei
   if (ep.bodyFile) {
-    const bfPath = join(Deno.cwd(), ep.bodyFile);
+    const bf = join(Deno.cwd(), ep.bodyFile);
     try {
-      init.body = await Deno.readTextFile(bfPath);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `⚠️ bodyFile "${ep.bodyFile}" für "${ep.name}" nicht geladen: ${msg}`,
-      );
+      init.body = await Deno.readTextFile(bf);
+    } catch (e: unknown) {
+      console.warn(`⚠️ bodyFile "${ep.bodyFile}" nicht geladen: ${e}`);
     }
   }
 
-  // 4) TestResult initialisieren
+  // 4) Result initialisieren
   const result: TestResult = {
     endpointName: ep.name,
     method: ep.method,
@@ -117,29 +102,24 @@ export async function testEndpoint(
     actualData: undefined,
   };
 
-  // 5) HTTP-Request ausführen
+  // 5) HTTP-Request
   const resp = await fetch(url, init);
   result.status = resp.status;
+
+  // ✨ Einmal als Text lesen und dann JSON.parse vs. Rohtext
+  const raw = await resp.text();
   let body: unknown;
   try {
-    body = await resp.json();
+    body = JSON.parse(raw);
   } catch {
-    body = await resp.text();
+    body = raw;
   }
   result.body = body;
 
   // 6) Schema-Vergleich
   try {
-    // Wenn in config.json explizit expectedStructure gesetzt ist, verwende es,
-    // sonst suche automatisch nach der passenden Datei
     const fsPath = ep.expectedStructure
-      ? join(
-        Deno.cwd(),
-        "src",
-        "api-tester",
-        "expected",
-        ep.expectedStructure,
-      )
+      ? join(Deno.cwd(), "src", "api-tester", "expected", ep.expectedStructure)
       : await findExpectedFile(key);
 
     const diff = await analyzeResponse(key, fsPath, body);
@@ -148,13 +128,16 @@ export async function testEndpoint(
     result.typeMismatches = diff.typeMismatches;
     result.actualData = diff.updatedSchema;
     result.expectedFile = ep.expectedStructure ?? fsPath.split("/").pop();
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`⚠️ Schema-Vergleich für "${ep.name}" fehlgeschlagen: ${msg}`);
+  } catch (e: unknown) {
+    console.warn(
+      `⚠️ Schema-Vergleich für "${ep.name}" fehlgeschlagen: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
+    );
     result.expectedMissing = true;
   }
 
-  // 7) LOCAL_MODE → Roh-Antwort lokal speichern
+  // 7) LOCAL_MODE → Response speichern
   if (Deno.env.get("LOCAL_MODE") === "true") {
     const outDir = join(Deno.cwd(), "src", "api-tester", "responses");
     await Deno.mkdir(outDir, { recursive: true });
