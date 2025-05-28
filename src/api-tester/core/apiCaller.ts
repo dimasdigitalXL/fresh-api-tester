@@ -31,7 +31,7 @@ export interface TestResult {
  * Wirft, wenn ein Platzhalter keinen Wert hat.
  */
 function buildUrl(template: string, params: Record<string, string>): string {
-  return template.replace(/\$\{(\w+)\}/g, (_, key) => {
+  return template.replace(/\$\{(\w+)\}/g, (_match, key) => {
     const val = params[key];
     if (val === undefined) {
       throw new Error(`Kein Wert für URL-Parameter "${key}"`);
@@ -54,7 +54,7 @@ export async function testEndpoint(
   let url: string;
   try {
     url = buildUrl(ep.url, dynamicParamsOverride);
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`Ungültige URL für "${ep.name}": ${msg}`);
   }
@@ -75,12 +75,12 @@ export async function testEndpoint(
     headers,
   };
 
-  // Optional: Request-Body aus Datei laden
+  // optionaler Request-Body aus Datei
   if (ep.bodyFile) {
     const bfPath = join(Deno.cwd(), ep.bodyFile);
     try {
       init.body = await Deno.readTextFile(bfPath);
-    } catch (err) {
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(
         `⚠️ bodyFile "${ep.bodyFile}" für "${ep.name}" nicht geladen: ${msg}`,
@@ -105,13 +105,16 @@ export async function testEndpoint(
   // 5) HTTP-Request ausführen
   const resp = await fetch(url, init);
   result.status = resp.status;
-  let body: unknown;
+
+  // **Body nur einmal lesen**: erst als Text, dann JSON versuchen
+  const rawText = await resp.text();
+  let parsed: unknown;
   try {
-    body = await resp.json();
+    parsed = JSON.parse(rawText);
   } catch {
-    body = await resp.text();
+    parsed = rawText;
   }
-  result.body = body;
+  result.body = parsed;
 
   // 6) Schema-Vergleich
   try {
@@ -122,26 +125,25 @@ export async function testEndpoint(
       "expected",
       ep.expectedStructure ?? `${key}.json`,
     );
-    const diff = await analyzeResponse(key, fsPath, body);
-
+    const diff = await analyzeResponse(key, fsPath, parsed);
     result.missingFields = diff.missingFields;
     result.extraFields = diff.extraFields;
     result.typeMismatches = diff.typeMismatches;
     result.actualData = diff.updatedSchema;
-    // Damit man im Slack-Report sieht, welche Datei gesucht wurde:
-    result.expectedFile = ep.expectedStructure ?? `${key}.json`;
-  } catch (err) {
+    result.expectedFile = ep.expectedStructure;
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`⚠️ Schema-Vergleich für "${ep.name}" fehlgeschlagen: ${msg}`);
     result.expectedMissing = true;
-    result.expectedFile = ep.expectedStructure ?? `${key}.json`;
   }
 
   // 7) LOCAL_MODE → Roh-Antwort lokal speichern
   if (Deno.env.get("LOCAL_MODE") === "true") {
     const outDir = join(Deno.cwd(), "src", "api-tester", "responses");
     await Deno.mkdir(outDir, { recursive: true });
-    const txt = typeof body === "string" ? body : JSON.stringify(body, null, 2);
+    const txt = typeof parsed === "string"
+      ? parsed
+      : JSON.stringify(parsed, null, 2);
     await Deno.writeTextFile(join(outDir, `${key}.json`), txt);
     console.log(`📝 [LOCAL] Response für "${ep.name}" gespeichert`);
   }
