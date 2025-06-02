@@ -41,7 +41,7 @@ interface SlackBlock {
 export async function handlePinSubmission(
   payload: SlackSubmissionPayload,
 ): Promise<void> {
-  console.log("🔔 handlePinSubmission aufgerufen");
+  console.log("🔔 handlePinSubmission aufgerufen:", JSON.stringify(payload));
 
   // 1) PIN auslesen
   const pin = payload.view.state.values.pin_input.pin.value;
@@ -85,7 +85,7 @@ export async function handlePinSubmission(
   const GLOBAL_PIN = Deno.env.get("SLACK_APPROVE_PIN") ?? "1234";
   if (pin !== GLOBAL_PIN) {
     console.warn("❌ Falsche PIN für", endpoint);
-    // Slack zeigt automatisch „Falscher PIN“ im Modal an:
+    // Slack zeigt durch Response-Action im Modal automatisch „Falscher PIN“ an:
     return;
   }
 
