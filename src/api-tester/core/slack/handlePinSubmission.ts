@@ -85,7 +85,7 @@ export async function handlePinSubmission(
   const GLOBAL_PIN = Deno.env.get("SLACK_APPROVE_PIN") ?? "1234";
   if (pin !== GLOBAL_PIN) {
     console.warn("❌ Falsche PIN für", endpoint);
-    // Hier könnte man optional noch per views.update() eine Fehlermeldung im Modal anzeigen.
+    // Slack zeigt automatisch "Falscher PIN" im Modal an:
     return;
   }
 
@@ -152,7 +152,7 @@ export async function handlePinSubmission(
     }
   }
 
-  // 11) Slack-Nachricht updaten (nur Buttons entfernen, Drift-Text beibehalten)
+  // 11) Slack-Nachricht updaten (Buttons entfernen, Drift-Text beibehalten)
   try {
     // a) Original-Blöcke aus KV holen
     const { value: storedBlocks } = await kvInstance.get<SlackBlock[]>([
@@ -169,8 +169,6 @@ export async function handlePinSubmission(
       }
       cleanedBlocks.push(b);
     }
-
-    // (Den abschließenden Divider nicht entfernen, damit der Drift-Text erhalten bleibt.)
 
     // c) Bestätigungs-Abschnitt (Detail-Info + Zeitstempel + Freigegeben-Block)
     const now = new Date();
@@ -223,7 +221,7 @@ export async function handlePinSubmission(
 
     const updatedBlocks = [...cleanedBlocks, ...confirmationBlocks];
 
-    // e) Chat-Update ausführen
+    // d) Chat-Update ausführen
     const resp = await axios.post(
       "https://slack.com/api/chat.update",
       {
@@ -241,7 +239,7 @@ export async function handlePinSubmission(
     );
     console.log("▶️ Slack API chat.update response:", resp.data);
 
-    // f) aktualisierte Blöcke wieder in KV speichern
+    // e) aktualisierte Blöcke wieder in KV speichern
     await kvInstance.set(["rawBlocks", key], updatedBlocks);
     console.log("✅ KV: rawBlocks updated für", key);
   } catch (e) {

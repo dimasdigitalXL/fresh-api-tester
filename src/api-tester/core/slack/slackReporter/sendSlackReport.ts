@@ -12,10 +12,6 @@ import type { VersionUpdate } from "../../endpointRunner.ts";
 
 const MAX_BLOCKS_PER_MESSAGE = 50;
 
-/**
- * Liefert für jede Ziffer von n das entsprechende Keycap-Emoji.
- * Beispiel: 16 ⇒ ":eins::sechs:" (eigentlich: "1️⃣6️⃣")
- */
 function numberEmoji(n: number): string {
   const digitMap: Record<string, string> = {
     "0": "0️⃣",
@@ -36,7 +32,6 @@ function numberEmoji(n: number): string {
     .join("");
 }
 
-/** Teilt ein Array in Chunks der Länge `size` */
 function chunkArray<T>(array: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < array.length; i += size) {
@@ -45,16 +40,11 @@ function chunkArray<T>(array: T[], size: number): T[][] {
   return chunks;
 }
 
-/**
- * Sendet den Slack-Testbericht. Wenn `approver` gesetzt ist, wird
- * ein zusätzlicher Hinweisblock ("Freigegeben von @user") eingefügt.
- */
 export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: VersionUpdate[] = [],
   approver?: string,
 ): Promise<void> {
-  // 1) Alle Ergebnisse mit Schema-Issues sammeln
   const allIssues = testResults.filter((r) =>
     r.expectedMissing ||
     r.missingFields.length > 0 ||
@@ -62,7 +52,6 @@ export async function sendSlackReport(
     r.typeMismatches.length > 0
   );
 
-  // 2) Approval-Status aus KV laden
   const { value: approvalsValue } = await kvInstance.get<
     Record<string, string>
   >(
@@ -70,18 +59,16 @@ export async function sendSlackReport(
   );
   const approvals = approvalsValue ?? {};
 
-  // 3) Nur die mit Status "pending"
+  // Pending = keine Einträge in approvals ODER approvals[key] === "pending"
   const pendingIssues = allIssues.filter((r) => {
     const key = r.endpointName.replace(/\s+/g, "_");
     return approvals[key] === undefined || approvals[key] === "pending";
   });
 
-  // 4) Header-, Versions- und Statistik-Blöcke vorbereiten
   const headerBlocks = renderHeaderBlock(
     new Date().toLocaleDateString("de-DE"),
   ) as Block[];
 
-  // Wenn ein Approver übergeben wurde, füge Kontext-Block hinzu
   if (approver) {
     headerBlocks.push({
       type: "context",
@@ -106,7 +93,6 @@ export async function sendSlackReport(
     allIssues.length,
   ) as Block[];
 
-  //  → Keine offenen Issues? Dann Nur-Statistik senden
   if (pendingIssues.length === 0) {
     for (const { token, channel } of getSlackWorkspaces()) {
       const blocks: Block[] = [
@@ -129,7 +115,6 @@ export async function sendSlackReport(
     return;
   }
 
-  // 5) Baue für jede offene Issue die Slack-Blöcke
   const allBodyBlocks: Block[] = [];
   const rawBlocksMap = new Map<string, Block[]>();
 
@@ -137,23 +122,22 @@ export async function sendSlackReport(
     const key = r.endpointName.replace(/\s+/g, "_");
     const blocks: Block[] = [];
 
-    // A) Section mit durchnummeriertem Emoji
     const icon = r.expectedMissing || r.missingFields.length > 0
       ? "🔴"
       : (r.extraFields.length > 0 || r.typeMismatches.length > 0)
       ? "🟠"
       : "⚪️";
 
+    // A) Header in Liste
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        // Beispiel: ":eins::sechs: *Get View Customer* 🔴"
         text: `${numberEmoji(idx + 1)} *${r.endpointName}* ${icon}`,
       },
     });
 
-    // B) Kontext-Details
+    // B) Context-Blöcke mit Drift-Details
     if (r.expectedMissing) {
       blocks.push({
         type: "context",
@@ -205,7 +189,7 @@ export async function sendSlackReport(
       }
     }
 
-    // C) Trennlinie, Aktionen (Buttons) und Trennlinie
+    // C) Trennlinie, Action‐Buttons (mit genau block_id = "decision_buttons_<key>"), Trennlinie
     blocks.push({ type: "divider" });
     blocks.push({
       type: "actions",
@@ -239,7 +223,7 @@ export async function sendSlackReport(
     rawBlocksMap.set(key, blocks);
   });
 
-  // 6) Paginierung der Body-Blöcke
+  // 6) Paginierung
   const headerCount = headerBlocks.length + versionBlocks.length;
   const footerCount = statsBlocks.length;
   const maxPerPage = Math.max(
@@ -248,7 +232,7 @@ export async function sendSlackReport(
   );
   const pages = chunkArray(allBodyBlocks, maxPerPage);
 
-  // 7) Roh-Version für Modal in KV speichern
+  // 7) Roh-Blöcke in KV speichern (später für Slack-Update)
   for (const [key, blks] of rawBlocksMap) {
     await kvInstance.set(["rawBlocks", key], blks);
   }

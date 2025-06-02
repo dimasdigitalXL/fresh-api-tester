@@ -1,6 +1,6 @@
 // routes/api/slack.ts
 
-import "https://deno.land/std@0.216.0/dotenv/load.ts"; // lädt .env in Deno.env
+import "https://deno.land/std@0.216.0/dotenv/load.ts";
 import { Handlers } from "$fresh/server.ts";
 import { validateSignature } from "../../src/api-tester/core/slack/validateSignature.ts";
 import { openPinModal } from "../../src/api-tester/core/slack/openPinModal.ts";
@@ -76,7 +76,7 @@ export const handler: Handlers = {
           challenge?: unknown;
           view?: unknown;
         };
-        // URL-Verification
+        // URL-Verification (nur bei ersten Setup)
         if (
           parsedObj.type === "url_verification" &&
           typeof parsedObj.challenge === "string"
@@ -86,11 +86,12 @@ export const handler: Handlers = {
             headers: { "Content-Type": "text/plain" },
           });
         }
-        // Modal-Submit (PIN-Dialog)
+        // Modal-Submit (PIN-Dialog, callback_id = "pin_submission")
         if (
           parsedObj.type === "view_submission" &&
           typeof parsedObj.view === "object"
         ) {
+          // Sofort 200 zurückgeben – die Weiterverarbeitung passiert in handlePinSubmission
           const resp = new Response("", { status: 200 });
           void handlePinSubmission(parsedUnknown as SlackSubmissionPayload);
           return resp;
@@ -110,8 +111,11 @@ export const handler: Handlers = {
       ) {
         const payload = payloadUnknown as BlockActionPayload;
         const resp = new Response("", { status: 200 });
+        // Hier öffnen wir das Modal mit callback_id = "pin_submission"
         void openPinModal({
           triggerId: payload.trigger_id,
+          // value des Buttons ist ein JSON-String mit
+          // { endpointName, method, missing[], extra[], typeMismatches[] }
           endpoint: payload.actions[0].value,
           messageTs: payload.message.ts,
           channelId: payload.channel.id,
