@@ -14,7 +14,7 @@ const MAX_BLOCKS_PER_MESSAGE = 50;
 
 /**
  * Liefert für jede Ziffer von n das entsprechende Keycap-Emoji.
- * Beispiel: 16 ⇒ ":eins::sechs:"
+ * Beispiel: 16 ⇒ ":eins::sechs:" (eigentlich: "1️⃣6️⃣")
  */
 function numberEmoji(n: number): string {
   const digitMap: Record<string, string> = {
@@ -73,7 +73,7 @@ export async function sendSlackReport(
   // 3) Nur die mit Status "pending"
   const pendingIssues = allIssues.filter((r) => {
     const key = r.endpointName.replace(/\s+/g, "_");
-    return approvals[key] === "pending";
+    return approvals[key] === undefined || approvals[key] === "pending";
   });
 
   // 4) Header-, Versions- und Statistik-Blöcke vorbereiten
@@ -81,7 +81,7 @@ export async function sendSlackReport(
     new Date().toLocaleDateString("de-DE"),
   ) as Block[];
 
-  // Wenn ein Approver übergeben wurde, einzeln einen Kontext-Block hinzufügen
+  // Wenn ein Approver übergeben wurde, füge Kontext-Block hinzu
   if (approver) {
     headerBlocks.push({
       type: "context",
@@ -106,7 +106,7 @@ export async function sendSlackReport(
     allIssues.length,
   ) as Block[];
 
-  // → Keine offenen Issues? Dann Nur-Statistik senden
+  //  → Keine offenen Issues? Dann Nur-Statistik senden
   if (pendingIssues.length === 0) {
     for (const { token, channel } of getSlackWorkspaces()) {
       const blocks: Block[] = [
@@ -148,7 +148,7 @@ export async function sendSlackReport(
       type: "section",
       text: {
         type: "mrkdwn",
-        // Beispiel: ":eins::sechs: *Get View Address* 🔴"
+        // Beispiel: ":eins::sechs: *Get View Customer* 🔴"
         text: `${numberEmoji(idx + 1)} *${r.endpointName}* ${icon}`,
       },
     });
@@ -192,7 +192,7 @@ export async function sendSlackReport(
           .map((tm) =>
             `• ${
               tm.path.replace(/^data(\[0\])?\./, "")
-            }: erwartet ${tm.expected}, erhalten ${tm.actual}`
+            }: erwartet \`${tm.expected}\`, erhalten \`${tm.actual}\``
           )
           .join("\n");
         blocks.push({
@@ -205,7 +205,7 @@ export async function sendSlackReport(
       }
     }
 
-    // C) Trennlinie, Aktionen und Trennlinie
+    // C) Trennlinie, Aktionen (Buttons) und Trennlinie
     blocks.push({ type: "divider" });
     blocks.push({
       type: "actions",
@@ -216,7 +216,13 @@ export async function sendSlackReport(
           text: { type: "plain_text", text: "✅ Einverstanden" },
           style: "primary",
           action_id: "open_pin_modal",
-          value: key,
+          value: JSON.stringify({
+            endpointName: r.endpointName,
+            method: r.method,
+            missing: r.missingFields,
+            extra: r.extraFields,
+            typeMismatches: r.typeMismatches,
+          }),
         },
         {
           type: "button",

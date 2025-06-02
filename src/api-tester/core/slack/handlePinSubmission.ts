@@ -25,7 +25,6 @@ export interface SlackSubmissionPayload {
 
 interface ParsedMetadata {
   endpoint: string;
-  // method wird hier nicht mehr verwendet, daher keine Variable deklarieren
   missing: string[];
   extra: string[];
   typeMismatches: Array<{ path: string; expected: string; actual: string }>;
@@ -86,7 +85,7 @@ export async function handlePinSubmission(
   const GLOBAL_PIN = Deno.env.get("SLACK_APPROVE_PIN") ?? "1234";
   if (pin !== GLOBAL_PIN) {
     console.warn("❌ Falsche PIN für", endpoint);
-    // Hier könnte man noch per views.update() eine Fehlermeldung im Modal anzeigen.
+    // Hier könnte man optional noch per views.update() eine Fehlermeldung im Modal anzeigen.
     return;
   }
 
@@ -109,9 +108,9 @@ export async function handlePinSubmission(
   // 7) Aus KV: Pending-Updates laden
   let pendingForAll: SchemaUpdate[] = [];
   try {
-    const { value: pendingValue } = await kvInstance.get<SchemaUpdate[]>(
-      ["pendingUpdates"],
-    );
+    const { value: pendingValue } = await kvInstance.get<SchemaUpdate[]>([
+      "pendingUpdates",
+    ]);
     pendingForAll = Array.isArray(pendingValue) ? pendingValue : [];
   } catch (e) {
     console.error("❌ Fehler beim Laden von pendingUpdates aus KV:", e);
@@ -125,18 +124,22 @@ export async function handlePinSubmission(
       `⚠️ Kein Pending-Update gefunden für ${key}. Nichts zu committen.`,
     );
   } else {
-    // 9) Schema-Update in Git pushen
+    // 9) Schema-Update in Git pushen (mit GITHUB_OWNER / GITHUB_REPO)
     try {
-      const gitRepoJson = Deno.env.get("GIT_REPO_INFO");
-      if (!gitRepoJson) {
-        throw new Error("GIT_REPO_INFO nicht in ENV gefunden (JSON String).");
+      const owner = Deno.env.get("GITHUB_OWNER");
+      const repo = Deno.env.get("GITHUB_REPO");
+      const branch = Deno.env.get("GITHUB_BRANCH") ?? "main";
+      if (!owner || !repo) {
+        throw new Error(
+          "GITHUB_OWNER und GITHUB_REPO müssen in der Umgebung gesetzt sein.",
+        );
       }
-      const repoInfo: RepoInfo = JSON.parse(gitRepoJson);
+      const repoInfo: RepoInfo = { owner, repo, branch };
       await pushExpectedSchemaToGit(repoInfo, [matching]);
       console.log(`✅ Schema für "${key}" in Git gepusht.`);
     } catch (e) {
       console.error("❌ Fehler beim Git-Push für", key, ":", e);
-      // Wir setzen trotzdem fort, um Slack-Nachricht zu editieren.
+      // Weiterführen, damit Slack-Nachricht dennoch aktualisiert wird.
     }
 
     // 10) pendingUpdates in KV aktualisieren: Entferne den genehmigten Eintrag
@@ -149,39 +152,31 @@ export async function handlePinSubmission(
     }
   }
 
-  // 11) Slack-Nachricht updaten
+  // 11) Slack-Nachricht updaten (nur Buttons entfernen, Drift-Text beibehalten)
   try {
     // a) Original-Blöcke aus KV holen
-    const { value: storedBlocks } = await kvInstance.get<SlackBlock[]>(
-      ["rawBlocks", key],
-    );
+    const { value: storedBlocks } = await kvInstance.get<SlackBlock[]>([
+      "rawBlocks",
+      key,
+    ]);
     const originalBlocks = Array.isArray(storedBlocks) ? storedBlocks : [];
 
-    // b) Decision-Buttons entfernen
+    // b) Decision-Buttons entfernen (block_id = "decision_buttons_<key>")
     const cleanedBlocks: SlackBlock[] = [];
     for (const b of originalBlocks) {
-      if (
-        b.block_id === `decision_buttons_${key}` ||
-        (b.block_id && b.block_id.startsWith("decision_buttons_"))
-      ) {
+      if (b.block_id === `decision_buttons_${key}`) {
         continue;
       }
       cleanedBlocks.push(b);
     }
 
-    // c) Letzten Divider entfernen, falls am Ende
-    if (
-      cleanedBlocks.length > 0 &&
-      cleanedBlocks[cleanedBlocks.length - 1].type === "divider"
-    ) {
-      cleanedBlocks.pop();
-    }
+    // (Den abschließenden Divider nicht entfernen, damit der Drift-Text erhalten bleibt.)
 
-    // d) Bestätigungs-Abschnitt (Detail-Info + Zeitstempel + Freigegeben-Block)
+    // c) Bestätigungs-Abschnitt (Detail-Info + Zeitstempel + Freigegeben-Block)
     const now = new Date();
     const timeFormatted = now.toLocaleTimeString("de-DE");
 
-    // block für die Zusammenfassung, welche Felder aktualisiert wurden:
+    // Detail-Lines zusammenstellen
     const detailLines: string[] = [];
     if (missingArr.length > 0) {
       detailLines.push(`*❌ Fehlende Felder:* ${missingArr.join(", ")}`);
