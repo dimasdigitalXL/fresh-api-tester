@@ -38,13 +38,13 @@ export async function openPinModal({
       payload = JSON.parse(endpointJson);
     } catch {
       console.error(
-        "🚨 openPinModal: Ungültiges JSON im Button-Value:",
+        "🚨 openPinModal: Ungültiges JSON im Button‐Value:",
         endpointJson,
       );
       return;
     }
 
-    // 3) private_metadata für das Modal zusammenstellen
+    // 3) private_metadata für das Modal zusammenstellen (inkl. original_ts + channel)
     const privateMetadata = JSON.stringify({
       endpoint: payload.endpointName,
       method: payload.method,
@@ -55,94 +55,7 @@ export async function openPinModal({
       channel: channelId,
     });
 
-    // 4) Modal-Blöcke dynamisch zusammenstellen
-    const blocks: Array<Record<string, unknown>> = [];
-
-    // A) Header
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text:
-          `*Endpoint:* ${payload.endpointName}\n*Methode:* \`${payload.method}\``,
-      },
-    });
-    blocks.push({ type: "divider" });
-
-    // B) Fehlende Felder (nur, wenn vorhanden)
-    if (payload.missing.length > 0) {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*❌ Fehlende Felder (${payload.missing.length}):*\n• ${
-            payload.missing.join(
-              "\n• ",
-            )
-          }`,
-        },
-      });
-    }
-
-    // C) Neue Felder (nur, wenn vorhanden)
-    if (payload.extra.length > 0) {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*➕ Neue Felder (${payload.extra.length}):*\n• ${
-            payload.extra.join(
-              "\n• ",
-            )
-          }`,
-        },
-      });
-    }
-
-    // D) Typabweichungen (nur, wenn vorhanden)
-    if (payload.typeMismatches.length > 0) {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*⚠️ Typabweichungen (${payload.typeMismatches.length}):*\n` +
-            payload.typeMismatches
-              .map((m) =>
-                `• \`${m.path}\`: erwartet \`${m.expected}\`, erhalten \`${m.actual}\``
-              )
-              .join("\n"),
-        },
-      });
-    }
-
-    // E) Falls keine Abweichungen, Hinweis-Block
-    if (
-      payload.missing.length === 0 &&
-      payload.extra.length === 0 &&
-      payload.typeMismatches.length === 0
-    ) {
-      blocks.push({
-        type: "section",
-        text: { type: "mrkdwn", text: "_Keine Abweichungen gefunden._" },
-      });
-    }
-
-    // F) PIN-Eingabe
-    blocks.push({ type: "divider" });
-    blocks.push({
-      type: "input",
-      block_id: "pin_input",
-      label: { type: "plain_text", text: "PIN eingeben" },
-      element: {
-        type: "plain_text_input",
-        action_id: "pin",
-        placeholder: { type: "plain_text", text: "••••" },
-        min_length: 4,
-        max_length: 6,
-      },
-    });
-
-    // 5) Modal öffnen
+    // 4) Modal definieren – AUF CALLBACK_ID "pin_submission" achten
     const view = {
       type: "modal",
       callback_id: "pin_submission",
@@ -150,9 +63,63 @@ export async function openPinModal({
       title: { type: "plain_text", text: "Änderung bestätigen" },
       submit: { type: "plain_text", text: "Bestätigen" },
       close: { type: "plain_text", text: "Abbrechen" },
-      blocks,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text:
+              `*Endpoint:* ${payload.endpointName}\n*Methode:* \`${payload.method}\``,
+          },
+        },
+        { type: "divider" },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*❌ Fehlende Felder (${payload.missing.length}):*\n• ${
+              payload.missing.join("\n• ")
+            }`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*➕ Neue Felder (${payload.extra.length}):*\n• ${
+              payload.extra.join("\n• ")
+            }`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*⚠️ Typabweichungen (${payload.typeMismatches.length}):*\n` +
+              payload.typeMismatches
+                .map((m) =>
+                  `• \`${m.path}\`: erwartet \`${m.expected}\`, erhalten \`${m.actual}\``
+                )
+                .join("\n"),
+          },
+        },
+        { type: "divider" },
+        {
+          type: "input",
+          block_id: "pin_input",
+          label: { type: "plain_text", text: "PIN eingeben" },
+          element: {
+            type: "plain_text_input",
+            action_id: "pin",
+            placeholder: { type: "plain_text", text: "••••" },
+            min_length: 4,
+            max_length: 6,
+          },
+        },
+      ],
     };
 
+    // 5) Modal öffnen
     const resp = await fetch("https://slack.com/api/views.open", {
       method: "POST",
       headers: {

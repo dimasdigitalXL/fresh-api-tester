@@ -1,6 +1,6 @@
 // routes/api/slack.ts
 
-import "https://deno.land/std@0.216.0/dotenv/load.ts";
+import "https://deno.land/std@0.216.0/dotenv/load.ts"; // lädt .env in Deno.env
 import { Handlers } from "$fresh/server.ts";
 import { validateSignature } from "../../src/api-tester/core/slack/validateSignature.ts";
 import { openPinModal } from "../../src/api-tester/core/slack/openPinModal.ts";
@@ -76,7 +76,7 @@ export const handler: Handlers = {
           challenge?: unknown;
           view?: unknown;
         };
-        // URL-Verification (nur bei Setup)
+        // URL-Verification
         if (
           parsedObj.type === "url_verification" &&
           typeof parsedObj.challenge === "string"
@@ -86,15 +86,14 @@ export const handler: Handlers = {
             headers: { "Content-Type": "text/plain" },
           });
         }
-        // Modal-Submit (PIN-Dialog, callback_id = "pin_submission")
+        // Modal-Submit (PIN-Dialog)
         if (
           parsedObj.type === "view_submission" &&
           typeof parsedObj.view === "object"
         ) {
-          // Sofort 200 zurückgeben – Weiterverarbeitung in handlePinSubmission
-          const resp = new Response("", { status: 200 });
+          // geben wir Slack direkt 200 zurück, und verarbeiten im Hintergrund
           void handlePinSubmission(parsedUnknown as SlackSubmissionPayload);
-          return resp;
+          return new Response("", { status: 200 });
         }
       }
       return new Response("", { status: 200 });
@@ -110,15 +109,16 @@ export const handler: Handlers = {
         (payloadUnknown as { type?: unknown }).type === "block_actions"
       ) {
         const payload = payloadUnknown as BlockActionPayload;
-        const resp = new Response("", { status: 200 });
-        // Modal öffnen mit callback_id = "pin_submission"
+        // Nehmen wir an: action_id = "open_pin_modal"
+        const action = payload.actions[0];
+        // <action.value> ist JSON-String mit endpointName, method, missing[], extra[], typeMismatches[]
         void openPinModal({
           triggerId: payload.trigger_id,
-          endpointJson: payload.actions[0].value,
+          endpointJson: action.value,
           messageTs: payload.message.ts,
           channelId: payload.channel.id,
         });
-        return resp;
+        return new Response("", { status: 200 });
       }
       return new Response("", { status: 200 });
     }
