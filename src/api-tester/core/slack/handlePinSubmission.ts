@@ -85,7 +85,7 @@ export async function handlePinSubmission(
   const GLOBAL_PIN = Deno.env.get("SLACK_APPROVE_PIN") ?? "1234";
   if (pin !== GLOBAL_PIN) {
     console.warn("❌ Falsche PIN für", endpoint);
-    // Slack zeigt automatisch "Falscher PIN" im Modal an:
+    // Slack zeigt automatisch „Falscher PIN“ im Modal an:
     return;
   }
 
@@ -105,7 +105,7 @@ export async function handlePinSubmission(
     return;
   }
 
-  // 7) Aus KV: Pending-Updates laden
+  // 7) Aus KV: pendingUpdates laden
   let pendingForAll: SchemaUpdate[] = [];
   try {
     const { value: pendingValue } = await kvInstance.get<SchemaUpdate[]>([

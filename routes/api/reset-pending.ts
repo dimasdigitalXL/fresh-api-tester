@@ -9,10 +9,6 @@ export const handler: Handlers = {
       // 1) Lösche das gesamte pendingUpdates-Array
       await kvInstance.delete(["pendingUpdates"]);
 
-      // 2) (Optional) Falls weitere Einträge unter einem anderen Prefix existieren,
-      //    z.B. "schema-update-pending", können diese hier noch mit gelöscht werden.
-      //    Im aktuellen Setup legen wir aber nur ["pendingUpdates"] ab, daher genügt Schritt 1.
-
       return new Response(
         JSON.stringify({
           ok: true,

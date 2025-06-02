@@ -76,7 +76,7 @@ export const handler: Handlers = {
           challenge?: unknown;
           view?: unknown;
         };
-        // URL-Verification (nur bei ersten Setup)
+        // URL-Verification (nur bei Setup)
         if (
           parsedObj.type === "url_verification" &&
           typeof parsedObj.challenge === "string"
@@ -91,7 +91,7 @@ export const handler: Handlers = {
           parsedObj.type === "view_submission" &&
           typeof parsedObj.view === "object"
         ) {
-          // Sofort 200 zurückgeben – die Weiterverarbeitung passiert in handlePinSubmission
+          // Sofort 200 zurückgeben – Weiterverarbeitung in handlePinSubmission
           const resp = new Response("", { status: 200 });
           void handlePinSubmission(parsedUnknown as SlackSubmissionPayload);
           return resp;
@@ -111,12 +111,10 @@ export const handler: Handlers = {
       ) {
         const payload = payloadUnknown as BlockActionPayload;
         const resp = new Response("", { status: 200 });
-        // Hier öffnen wir das Modal mit callback_id = "pin_submission"
+        // Modal öffnen mit callback_id = "pin_submission"
         void openPinModal({
           triggerId: payload.trigger_id,
-          // value des Buttons ist ein JSON-String mit
-          // { endpointName, method, missing[], extra[], typeMismatches[] }
-          endpoint: payload.actions[0].value,
+          endpointJson: payload.actions[0].value,
           messageTs: payload.message.ts,
           channelId: payload.channel.id,
         });

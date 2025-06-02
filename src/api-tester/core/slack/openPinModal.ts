@@ -4,23 +4,14 @@ import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 
 export interface OpenPinModalOptions {
   triggerId: string;
-  // Ab sofort als JSON-String: enthält endpointName, method, missing, extra, typeMismatches
-  endpoint: string;
+  endpointJson: string; // JSON-String mit { endpointName, method, missing[], extra[], typeMismatches[] }
   messageTs: string;
   channelId: string;
 }
 
-interface DiffPayload {
-  endpointName: string;
-  method: string;
-  missing: string[];
-  extra: string[];
-  typeMismatches: Array<{ path: string; expected: string; actual: string }>;
-}
-
 export async function openPinModal({
   triggerId,
-  endpoint: payloadJson,
+  endpointJson,
   messageTs,
   channelId,
 }: OpenPinModalOptions): Promise<void> {
@@ -35,20 +26,25 @@ export async function openPinModal({
     }
     const ws = workspaces[0];
 
-    // 2) Diff-Payload parsen
-    let payload: DiffPayload;
+    // 2) payload parsen (enthält endpointName, method, missing, extra, typeMismatches)
+    let payload: {
+      endpointName: string;
+      method: string;
+      missing: string[];
+      extra: string[];
+      typeMismatches: Array<{ path: string; expected: string; actual: string }>;
+    };
     try {
-      payload = JSON.parse(payloadJson);
+      payload = JSON.parse(endpointJson);
     } catch {
       console.error(
         "🚨 openPinModal: Ungültiges JSON im Button‐Value:",
-        payloadJson,
+        endpointJson,
       );
       return;
     }
 
-    // 3) private_metadata für das Modal erweitern:
-    //    endpoint + original_ts + channel + missing/extra/typeMismatches
+    // 3) private_metadata für das Modal zusammenstellen (inkl. original_ts + channel)
     const privateMetadata = JSON.stringify({
       endpoint: payload.endpointName,
       method: payload.method,
@@ -59,51 +55,7 @@ export async function openPinModal({
       channel: channelId,
     });
 
-    // 4) Diff-Blocks aufbauen (gleich wie bisher)
-    const diffBlocks: Array<Record<string, unknown>> = [];
-
-    if (payload.missing.length) {
-      diffBlocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*❌ Fehlende Felder (${payload.missing.length}):*\n• ` +
-            payload.missing.join("\n• "),
-        },
-      });
-    }
-    if (payload.extra.length) {
-      diffBlocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*➕ Neue Felder (${payload.extra.length}):*\n• ` +
-            payload.extra.join("\n• "),
-        },
-      });
-    }
-    if (payload.typeMismatches.length) {
-      diffBlocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*⚠️ Typabweichungen (${payload.typeMismatches.length}):*\n` +
-            payload.typeMismatches
-              .map((m) =>
-                `• ${m.path}: erwartet \`${m.expected}\`, erhalten \`${m.actual}\``
-              )
-              .join("\n"),
-        },
-      });
-    }
-    if (diffBlocks.length === 0) {
-      diffBlocks.push({
-        type: "section",
-        text: { type: "mrkdwn", text: "_Keine Abweichungen gefunden._" },
-      });
-    }
-
-    // 5) Modal definieren
+    // 4) Modal definieren
     const view = {
       type: "modal",
       callback_id: "pin_submission",
@@ -116,12 +68,45 @@ export async function openPinModal({
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*Endpoint:* ${payload.endpointName}\n` +
-              `*Methode:* \`${payload.method}\``,
+            text:
+              `*Endpoint:* ${payload.endpointName}\n*Methode:* \`${payload.method}\``,
           },
         },
         { type: "divider" },
-        ...diffBlocks,
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*❌ Fehlende Felder (${payload.missing.length}):*\n• ${
+              payload.missing.join(
+                "\n• ",
+              )
+            }`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*➕ Neue Felder (${payload.extra.length}):*\n• ${
+              payload.extra.join(
+                "\n• ",
+              )
+            }`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*⚠️ Typabweichungen (${payload.typeMismatches.length}):*\n` +
+              payload.typeMismatches
+                .map((m) =>
+                  `• \`${m.path}\`: erwartet \`${m.expected}\`, erhalten \`${m.actual}\``
+                )
+                .join("\n"),
+          },
+        },
         { type: "divider" },
         {
           type: "input",
@@ -138,7 +123,7 @@ export async function openPinModal({
       ],
     };
 
-    // 6) Modal öffnen
+    // 5) Modal öffnen
     const resp = await fetch("https://slack.com/api/views.open", {
       method: "POST",
       headers: {
@@ -148,7 +133,6 @@ export async function openPinModal({
       body: JSON.stringify({ trigger_id: triggerId, view }),
     });
 
-    // 7) Debug‐Log
     const json = await resp.json();
     console.log("▶️ views.open response:", JSON.stringify(json, null, 2));
     if (!json.ok) {

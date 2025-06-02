@@ -15,7 +15,7 @@ export const handler: Handlers = {
       Record<string, unknown>
     >(["rawBlocks"]);
 
-    // 2) alle pending-Schemas (pendingUpdates) auflisten:
+    // 2) alle pending-Schemas (pendingUpdates) auflisten
     let pendingList: Array<
       { key: string; fsPath?: string; newSchema?: unknown }
     > = [];
@@ -29,7 +29,7 @@ export const handler: Handlers = {
     }
 
     // 3) alle live-Schemas (expected) auflisten –
-    //    das sind Einträge unter Prefix ["expected", <key>]
+    //    Einträge unter Prefix ["expected", <key>]
     const expected: Record<string, unknown>[] = [];
     for await (const en of kvInstance.list({ prefix: ["expected"] })) {
       const key = en.key[1] as string;
