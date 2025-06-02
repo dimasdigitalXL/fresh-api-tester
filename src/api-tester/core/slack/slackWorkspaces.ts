@@ -1,6 +1,8 @@
+// src/api-tester/core/slack/slackWorkspaces.ts
+
 /**
  * Reads all configured Slack workspaces from environment variables.
- * Supports any number of:
+ * Supports beliebig viele:
  *   SLACK_BOT_TOKEN_1, SLACK_CHANNEL_ID_1, SLACK_SIGNING_SECRET_1
  *   SLACK_BOT_TOKEN_2, SLACK_CHANNEL_ID_2, SLACK_SIGNING_SECRET_2
  *   …
@@ -10,10 +12,14 @@ export function getSlackWorkspaces(): Array<{
   channel: string;
   signingSecret: string;
 }> {
-  const workspaces = [];
+  const workspaces: Array<{
+    token: string;
+    channel: string;
+    signingSecret: string;
+  }> = [];
   let i = 1;
 
-  // Loop until we no longer find a full token+channel pair
+  // Loop bis kein Paar (TOKEN + CHANNEL) mehr gefunden wird
   while (true) {
     const token = Deno.env.get(`SLACK_BOT_TOKEN_${i}`);
     const channel = Deno.env.get(`SLACK_CHANNEL_ID_${i}`);

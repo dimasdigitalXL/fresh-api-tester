@@ -4,6 +4,11 @@ import axios from "https://esm.sh/axios@1.4.0";
 import { kvInstance } from "../kv.ts";
 import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 import { getDisplayName } from "./getDisplayName.ts";
+import {
+  pushExpectedSchemaToGit,
+  type RepoInfo,
+  type SchemaUpdate,
+} from "../gitPush.ts";
 
 export interface SlackSubmissionPayload {
   view: {
@@ -16,6 +21,16 @@ export interface SlackSubmissionPayload {
     callback_id: string;
   };
   user: { id: string };
+}
+
+interface ParsedMetadata {
+  endpoint: string;
+  // method wird hier nicht mehr verwendet, daher keine Variable deklarieren
+  missing: string[];
+  extra: string[];
+  typeMismatches: Array<{ path: string; expected: string; actual: string }>;
+  original_ts: string;
+  channel: string;
 }
 
 interface SlackBlock {
@@ -33,14 +48,21 @@ export async function handlePinSubmission(
   const pin = payload.view.state.values.pin_input.pin.value;
 
   // 2) private_metadata parsen
-  let meta: { endpoint: string; original_ts: string; channel: string };
+  let meta: ParsedMetadata;
   try {
     meta = JSON.parse(payload.view.private_metadata);
   } catch {
     console.error("❌ Konnte private_metadata nicht parsen");
     return;
   }
-  const { endpoint, original_ts: originalTs, channel } = meta;
+  const {
+    endpoint,
+    missing: missingArr,
+    extra: extraArr,
+    typeMismatches: tmArr,
+    original_ts: originalTs,
+    channel,
+  } = meta;
   const key = endpoint.replace(/\s+/g, "_");
 
   // 3) Workspace & Token ermitteln
@@ -57,45 +79,97 @@ export async function handlePinSubmission(
     userName = await getDisplayName(payload.user.id, token);
   } catch (e) {
     console.error("❌ Fehler bei getDisplayName:", e);
-    return;
+    userName = `<@${payload.user.id}>`;
   }
 
   // 5) PIN prüfen
   const GLOBAL_PIN = Deno.env.get("SLACK_APPROVE_PIN") ?? "1234";
   if (pin !== GLOBAL_PIN) {
     console.warn("❌ Falsche PIN für", endpoint);
+    // Hier könnte man noch per views.update() eine Fehlermeldung im Modal anzeigen.
     return;
   }
 
-  // 6) Approval-Status in KV speichern
+  // 6) Approval-Status in KV setzen
   try {
     const { value: storedApprovals } = await kvInstance.get<
       Record<string, string>
-    >(["approvals"]);
+    >(
+      ["approvals"],
+    );
     const approvals = storedApprovals ?? {};
     approvals[key] = "approved";
     await kvInstance.set(["approvals"], approvals);
     console.log("✅ KV: approval status 'approved' für", key);
   } catch (e) {
     console.error("❌ Fehler beim Speichern der Approvals in KV:", e);
+    return;
   }
 
-  // 7) Blocks aus KV lesen und Nachricht aktualisieren
-  console.log("🔧 Update Slack Nachricht für Endpoint:", endpoint);
+  // 7) Aus KV: Pending-Updates laden
+  let pendingForAll: SchemaUpdate[] = [];
   try {
+    const { value: pendingValue } = await kvInstance.get<SchemaUpdate[]>(
+      ["pendingUpdates"],
+    );
+    pendingForAll = Array.isArray(pendingValue) ? pendingValue : [];
+  } catch (e) {
+    console.error("❌ Fehler beim Laden von pendingUpdates aus KV:", e);
+    pendingForAll = [];
+  }
+
+  // 8) Finde das passende SchemaUpdate fürs aktuelle key
+  const matching = pendingForAll.find((upd) => upd.key === key);
+  if (!matching) {
+    console.warn(
+      `⚠️ Kein Pending-Update gefunden für ${key}. Nichts zu committen.`,
+    );
+  } else {
+    // 9) Schema-Update in Git pushen
+    try {
+      const gitRepoJson = Deno.env.get("GIT_REPO_INFO");
+      if (!gitRepoJson) {
+        throw new Error("GIT_REPO_INFO nicht in ENV gefunden (JSON String).");
+      }
+      const repoInfo: RepoInfo = JSON.parse(gitRepoJson);
+      await pushExpectedSchemaToGit(repoInfo, [matching]);
+      console.log(`✅ Schema für "${key}" in Git gepusht.`);
+    } catch (e) {
+      console.error("❌ Fehler beim Git-Push für", key, ":", e);
+      // Wir setzen trotzdem fort, um Slack-Nachricht zu editieren.
+    }
+
+    // 10) pendingUpdates in KV aktualisieren: Entferne den genehmigten Eintrag
+    try {
+      const newPending = pendingForAll.filter((upd) => upd.key !== key);
+      await kvInstance.set(["pendingUpdates"], newPending);
+      console.log(`✅ KV: pendingUpdates um "${key}" bereinigt.`);
+    } catch (e) {
+      console.error("❌ Fehler beim Bereinigen von pendingUpdates in KV:", e);
+    }
+  }
+
+  // 11) Slack-Nachricht updaten
+  try {
+    // a) Original-Blöcke aus KV holen
     const { value: storedBlocks } = await kvInstance.get<SlackBlock[]>(
       ["rawBlocks", key],
     );
-    const originalBlocks = storedBlocks ?? [];
+    const originalBlocks = Array.isArray(storedBlocks) ? storedBlocks : [];
 
-    // Decision-Buttons entfernen
-    const cleanedBlocks = originalBlocks.filter(
-      (b) =>
-        b.block_id !== "decision_buttons" &&
-        !b.block_id?.startsWith("decision_buttons_"),
-    );
+    // b) Decision-Buttons entfernen
+    const cleanedBlocks: SlackBlock[] = [];
+    for (const b of originalBlocks) {
+      if (
+        b.block_id === `decision_buttons_${key}` ||
+        (b.block_id && b.block_id.startsWith("decision_buttons_"))
+      ) {
+        continue;
+      }
+      cleanedBlocks.push(b);
+    }
 
-    // letzten Divider entfernen, falls vorhanden
+    // c) Letzten Divider entfernen, falls am Ende
     if (
       cleanedBlocks.length > 0 &&
       cleanedBlocks[cleanedBlocks.length - 1].type === "divider"
@@ -103,17 +177,46 @@ export async function handlePinSubmission(
       cleanedBlocks.pop();
     }
 
-    // Bestätigungs-Abschnitt anhängen
-    const now = new Date().toLocaleTimeString("de-DE");
+    // d) Bestätigungs-Abschnitt (Detail-Info + Zeitstempel + Freigegeben-Block)
+    const now = new Date();
+    const timeFormatted = now.toLocaleTimeString("de-DE");
+
+    // block für die Zusammenfassung, welche Felder aktualisiert wurden:
+    const detailLines: string[] = [];
+    if (missingArr.length > 0) {
+      detailLines.push(`*❌ Fehlende Felder:* ${missingArr.join(", ")}`);
+    }
+    if (extraArr.length > 0) {
+      detailLines.push(`*➕ Neue Felder:* ${extraArr.join(", ")}`);
+    }
+    if (tmArr.length > 0) {
+      const tmLines = tmArr.map(
+        (m) =>
+          `• \`${m.path}\`: erwartet \`${m.expected}\`, erhalten \`${m.actual}\``,
+      );
+      detailLines.push(`*⚠️ Typabweichungen:*\n${tmLines.join("\n")}`);
+    }
+    if (detailLines.length === 0) {
+      detailLines.push("_Keine Detail-Infos verfügbar_");
+    }
+
     const confirmationBlocks: SlackBlock[] = [
       { type: "divider" },
       {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `_AKTUALISIERT_ • ${now}`,
+          text: `*AKTUALISIERT* • ${timeFormatted}`,
         },
       },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: detailLines.join("\n"),
+        },
+      },
+      { type: "divider" },
       {
         type: "section",
         text: {
@@ -125,7 +228,7 @@ export async function handlePinSubmission(
 
     const updatedBlocks = [...cleanedBlocks, ...confirmationBlocks];
 
-    // Chat-Update
+    // e) Chat-Update ausführen
     const resp = await axios.post(
       "https://slack.com/api/chat.update",
       {
@@ -143,19 +246,20 @@ export async function handlePinSubmission(
     );
     console.log("▶️ Slack API chat.update response:", resp.data);
 
-    // updatedBlocks zurück in KV
+    // f) aktualisierte Blöcke wieder in KV speichern
     await kvInstance.set(["rawBlocks", key], updatedBlocks);
     console.log("✅ KV: rawBlocks updated für", key);
   } catch (e) {
     console.error("❌ Fehler beim Slack-Update:", e);
   }
 
-  // 8) Tests neu starten
+  // 12) Tests neu starten
   try {
+    console.log("▶️ Starte neuen Testlauf nach Approval…");
     const cmd = new Deno.Command(Deno.execPath(), {
-      args: ["run", "-A", "main.ts"],
+      args: ["run", "--unstable", "--unstable-kv", "-A", "run-tests.ts"],
       cwd: Deno.cwd(),
-      env: { ...Deno.env.toObject(), SKIP_RESET_APPROVALS: "true" },
+      env: { ...Deno.env.toObject(), SKIP_KV: "false" },
     });
     const child = cmd.spawn();
     const status = await child.status;

@@ -28,7 +28,7 @@ export async function runSingleEndpoint(
 ): Promise<TestResult | null> {
   console.debug(`[DEBUG] Starte runSingleEndpoint für "${endpoint.name}"`);
 
-  // 1) Dynamische Pfad-Parameter
+  // 1) Dynamische Pfad-Parameter (wie gehabt)
   if (endpoint.requiresId) {
     const key = endpoint.name.replace(/\s+/g, "_");
     const defRaw = _defaultIds[key] ?? _defaultIds[endpoint.name];
@@ -68,7 +68,7 @@ export async function runSingleEndpoint(
     }
   }
 
-  // 2) API-Versionserkennung
+  // 2) API-Versionserkennung (wie gehabt)
   const versionInfo = await checkAndUpdateApiVersion(
     endpoint,
     dynamicParamsOverride,
@@ -83,7 +83,7 @@ export async function runSingleEndpoint(
     return null;
   }
 
-  // 3) URL-Build & Test
+  // 3) URL-Build & Test (wie gehabt)
   let finalUrl: string;
   try {
     finalUrl = buildUrl(versionInfo.url, dynamicParamsOverride);
@@ -102,7 +102,7 @@ export async function runSingleEndpoint(
     `[DEBUG]  result: missing=${result.missingFields.length}, extra=${result.extraFields.length}, typeMismatches=${result.typeMismatches.length}`,
   );
 
-  // 4) Schema-Drift → neue _vN.json anlegen
+  // 4) Schema-Drift → neue _vN.json anlegen (aber nur in-memory, nicht sofort Git)
   const hasDrift = result.missingFields.length > 0 ||
     result.extraFields.length > 0 ||
     result.typeMismatches.length > 0;

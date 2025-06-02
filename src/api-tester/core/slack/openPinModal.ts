@@ -4,7 +4,7 @@ import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 
 export interface OpenPinModalOptions {
   triggerId: string;
-  // jetzt JSON‐String mit endpointName, method, missing, extra, typeMismatches
+  // Ab sofort als JSON-String: enthält endpointName, method, missing, extra, typeMismatches
   endpoint: string;
   messageTs: string;
   channelId: string;
@@ -35,7 +35,7 @@ export async function openPinModal({
     }
     const ws = workspaces[0];
 
-    // 2) payload parsen
+    // 2) Diff-Payload parsen
     let payload: DiffPayload;
     try {
       payload = JSON.parse(payloadJson);
@@ -47,15 +47,20 @@ export async function openPinModal({
       return;
     }
 
-    // 3) private_metadata für das Modal
+    // 3) private_metadata für das Modal erweitern:
+    //    endpoint + original_ts + channel + missing/extra/typeMismatches
     const privateMetadata = JSON.stringify({
       endpoint: payload.endpointName,
+      method: payload.method,
+      missing: payload.missing,
+      extra: payload.extra,
+      typeMismatches: payload.typeMismatches,
       original_ts: messageTs,
       channel: channelId,
     });
 
-    // 4) diff‐Blocks aufbauen
-    const diffBlocks = [];
+    // 4) Diff-Blocks aufbauen (gleich wie bisher)
+    const diffBlocks: Array<Record<string, unknown>> = [];
 
     if (payload.missing.length) {
       diffBlocks.push({
