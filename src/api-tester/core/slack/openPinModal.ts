@@ -4,16 +4,12 @@ import { getSlackWorkspaces } from "./slackWorkspaces.ts";
 
 export interface OpenPinModalOptions {
   triggerId: string;
-  endpointJson: string; // JSON-String mit { endpointName, method, missing[], extra[], typeMismatches[] }
-  messageTs: string;
-  channelId: string;
+  endpointJson: string; // JSON-String mit { endpointName, method, missing[], extra[], typeMismatches[], original_ts, channel }
 }
 
 export async function openPinModal({
   triggerId,
   endpointJson,
-  messageTs,
-  channelId,
 }: OpenPinModalOptions): Promise<void> {
   try {
     // 1) Workspace holen
@@ -26,13 +22,15 @@ export async function openPinModal({
     }
     const ws = workspaces[0];
 
-    // 2) payload parsen (enthält endpointName, method, missing, extra, typeMismatches)
+    // 2) payload parsen (enthält endpointName, method, missing, extra, typeMismatches, original_ts, channel)
     let payload: {
       endpointName: string;
       method: string;
       missing: string[];
       extra: string[];
       typeMismatches: Array<{ path: string; expected: string; actual: string }>;
+      original_ts: string;
+      channel: string;
     };
     try {
       payload = JSON.parse(endpointJson);
@@ -51,11 +49,11 @@ export async function openPinModal({
       missing: payload.missing,
       extra: payload.extra,
       typeMismatches: payload.typeMismatches,
-      original_ts: messageTs,
-      channel: channelId,
+      original_ts: payload.original_ts,
+      channel: payload.channel,
     });
 
-    // 4) Modal definieren – AUF CALLBACK_ID "pin_submission" achten
+    // 4) Modal definieren
     const view = {
       type: "modal",
       callback_id: "pin_submission",

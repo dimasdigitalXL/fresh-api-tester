@@ -10,7 +10,7 @@ import {
 } from "../../src/api-tester/core/slack/handlePinSubmission.ts";
 import { slackDebugEvents } from "../../src/api-tester/core/slack/debugStore.ts";
 
-const SKIP_VERIFY = Deno.env.get("SKIP_SLACK_VERIFY") === "true";
+const SKIP_VERIFY = Deno.env.get("SKIP_VALIDATE_SIGNATURE") === "true";
 
 interface BlockActionPayload {
   type: string;
@@ -91,9 +91,9 @@ export const handler: Handlers = {
           parsedObj.type === "view_submission" &&
           typeof parsedObj.view === "object"
         ) {
-          // geben wir Slack direkt 200 zurück, und verarbeiten im Hintergrund
+          const resp = new Response("", { status: 200 });
           void handlePinSubmission(parsedUnknown as SlackSubmissionPayload);
-          return new Response("", { status: 200 });
+          return resp;
         }
       }
       return new Response("", { status: 200 });
@@ -109,16 +109,12 @@ export const handler: Handlers = {
         (payloadUnknown as { type?: unknown }).type === "block_actions"
       ) {
         const payload = payloadUnknown as BlockActionPayload;
-        // Nehmen wir an: action_id = "open_pin_modal"
-        const action = payload.actions[0];
-        // <action.value> ist JSON-String mit endpointName, method, missing[], extra[], typeMismatches[]
+        const resp = new Response("", { status: 200 });
         void openPinModal({
           triggerId: payload.trigger_id,
-          endpointJson: action.value,
-          messageTs: payload.message.ts,
-          channelId: payload.channel.id,
+          endpointJson: payload.actions[0].value, // enthält { endpointName, method, missing[], extra[], typeMismatches[], original_ts, channel }
         });
-        return new Response("", { status: 200 });
+        return resp;
       }
       return new Response("", { status: 200 });
     }

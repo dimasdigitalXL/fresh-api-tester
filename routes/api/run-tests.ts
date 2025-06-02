@@ -1,6 +1,6 @@
 // routes/api/run-tests.ts
 
-import { Handlers } from "$fresh/server.ts";
+import type { Handlers } from "$fresh/server.ts";
 import { runAllTests } from "../../run-tests.ts";
 
 export const handler: Handlers = {
