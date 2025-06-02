@@ -18,6 +18,10 @@ export function resolveProjectPath(...segments: string[]): string {
 
 /**
  * Ersetzt `value` durch `fallback`, falls `value` undefined oder null ist.
+ *
+ * Beispiel:
+ *   replaceWithFallback(undefined, "DEFAULT") // "DEFAULT"
+ *   replaceWithFallback("VALUE", "DEFAULT")   // "VALUE"
  */
 export function replaceWithFallback<T>(
   value: T | undefined | null,
@@ -28,10 +32,11 @@ export function replaceWithFallback<T>(
 
 /**
  * Führt in `template` Platzhalter vom Format `${KEY}` durch Werte aus `replacements` ein.
- * Wenn ein Key nicht gefunden wird, lässt er ihn leer stehen.
+ * Wenn ein Key nicht gefunden wird, bleibt der Platzhalter leer.
  *
- * Beispiel:
+ * Beispiele:
  *   safeReplace("Hello ${NAME}", { NAME: "Max" })  // "Hello Max"
+ *   safeReplace("ID=${ID}", {})                     // "ID="
  */
 export function safeReplace(
   template: string,

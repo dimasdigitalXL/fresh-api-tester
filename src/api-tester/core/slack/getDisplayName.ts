@@ -3,8 +3,8 @@
 /**
  * Holt den Display-Namen eines Slack-Users.
  * @param userId – Slack User-ID (z.B. U123ABC)
- * @param token – Slack Bot Token
- * @returns Anzeigename oder, falls nicht verfügbar, die User-ID
+ * @param token  – Slack Bot Token
+ * @returns      Anzeigename oder, falls nicht verfügbar, die User-ID
  */
 export async function getDisplayName(
   userId: string,
@@ -22,6 +22,14 @@ export async function getDisplayName(
 
     if (!resp.ok) {
       console.warn("⚠️ Slack API users.info returned", resp.status);
+      return userId;
+    }
+
+    const contentType = resp.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      console.warn(
+        `⚠️ Slack API users.info lieferte keinen JSON-Response (content-type=${contentType})`,
+      );
       return userId;
     }
 

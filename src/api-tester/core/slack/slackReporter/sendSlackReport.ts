@@ -65,9 +65,7 @@ export async function sendSlackReport(
   // 2) Approval-Status aus KV laden
   const { value: approvalsValue } = await kvInstance.get<
     Record<string, string>
-  >(
-    ["approvals"],
-  );
+  >(["approvals"]);
   const approvals = approvalsValue ?? {};
 
   // 3) Nur die mit Status "pending" oder noch nicht gesetzt
@@ -204,7 +202,7 @@ export async function sendSlackReport(
       }
     }
 
-    // C) Trennlinie, Action‐Buttons (genau block_id = "decision_buttons_<key>"), Trennlinie
+    // C) Trennlinie, Action‐Buttons (block_id = "decision_buttons_<key>"), Trennlinie
     blocks.push({ type: "divider" });
     blocks.push({
       type: "actions",

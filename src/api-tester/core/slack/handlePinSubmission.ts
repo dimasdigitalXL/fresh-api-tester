@@ -38,6 +38,14 @@ interface SlackBlock {
   [key: string]: unknown;
 }
 
+/**
+ * Verarbeitet das Submission-Event aus dem PIN-Modal:
+ * 1) PIN prüfen
+ * 2) Approval in KV setzen
+ * 3) Passende SchemaUpdate aus KV holen und in Git pushen
+ * 4) rawBlocks aktualisieren: Buttons entfernen, „Freigegeben“-Sektion anhängen
+ * 5) Tests neu starten
+ */
 export async function handlePinSubmission(
   payload: SlackSubmissionPayload,
 ): Promise<void> {
@@ -93,9 +101,7 @@ export async function handlePinSubmission(
   try {
     const { value: storedApprovals } = await kvInstance.get<
       Record<string, string>
-    >(
-      ["approvals"],
-    );
+    >(["approvals"]);
     const approvals = storedApprovals ?? {};
     approvals[key] = "approved";
     await kvInstance.set(["approvals"], approvals);
@@ -105,7 +111,7 @@ export async function handlePinSubmission(
     return;
   }
 
-  // 7) Aus KV: pendingUpdates laden
+  // 7) Passende SchemaUpdates aus KV laden
   let pendingForAll: SchemaUpdate[] = [];
   try {
     const { value: pendingValue } = await kvInstance.get<SchemaUpdate[]>([
@@ -124,7 +130,7 @@ export async function handlePinSubmission(
       `⚠️ Kein Pending-Update gefunden für ${key}. Nichts zu committen.`,
     );
   } else {
-    // 9) Schema-Update in Git pushen (mit GITHUB_OWNER / GITHUB_REPO)
+    // 9) Schema-Update in Git pushen
     try {
       const owner = Deno.env.get("GITHUB_OWNER");
       const repo = Deno.env.get("GITHUB_REPO");
@@ -136,13 +142,13 @@ export async function handlePinSubmission(
       }
       const repoInfo: RepoInfo = { owner, repo, branch };
       await pushExpectedSchemaToGit(repoInfo, [matching]);
-      console.log(`✅ Schema für "${key}" in Git gepusht.`);
+      console.log(`✅ SchemaUpdate für "${key}" in Git gepusht.`);
     } catch (e) {
       console.error("❌ Fehler beim Git-Push für", key, ":", e);
-      // Weiterführen, damit Slack-Nachricht dennoch aktualisiert wird.
+      // Fortsetzen, damit Slack-Update dennoch erfolgt.
     }
 
-    // 10) pendingUpdates in KV aktualisieren: Entferne den genehmigten Eintrag
+    // 10) pendingUpdates in KV bereinigen: Entferne den genehmigten Eintrag
     try {
       const newPending = pendingForAll.filter((upd) => upd.key !== key);
       await kvInstance.set(["pendingUpdates"], newPending);
@@ -152,7 +158,7 @@ export async function handlePinSubmission(
     }
   }
 
-  // 11) Slack-Nachricht updaten (Buttons entfernen, Drift-Text beibehalten)
+  // 11) Slack-Nachricht aktualisieren
   try {
     // a) Original-Blöcke aus KV holen
     const { value: storedBlocks } = await kvInstance.get<SlackBlock[]>([
@@ -161,20 +167,24 @@ export async function handlePinSubmission(
     ]);
     const originalBlocks = Array.isArray(storedBlocks) ? storedBlocks : [];
 
-    // b) Decision-Buttons entfernen (block_id = "decision_buttons_<key>")
-    const cleanedBlocks: SlackBlock[] = [];
-    for (const b of originalBlocks) {
-      if (b.block_id === `decision_buttons_${key}`) {
-        continue;
-      }
-      cleanedBlocks.push(b);
+    // b) Buttons entfernen
+    const cleanedBlocks: SlackBlock[] = originalBlocks.filter(
+      (b) => b.block_id !== `decision_buttons_${key}`,
+    );
+
+    // c) Letzten Divider entfernen, falls vorhanden
+    if (
+      cleanedBlocks.length > 0 &&
+      cleanedBlocks[cleanedBlocks.length - 1].type === "divider"
+    ) {
+      cleanedBlocks.pop();
     }
 
-    // c) Bestätigungs-Abschnitt (Detail-Info + Zeitstempel + Freigegeben-Block)
+    // d) Bestätigungs-Abschnitt anhängen
     const now = new Date();
     const timeFormatted = now.toLocaleTimeString("de-DE");
 
-    // Detail-Lines zusammenstellen
+    // Detail-Lines zusammenbauen
     const detailLines: string[] = [];
     if (missingArr.length > 0) {
       detailLines.push(`*❌ Fehlende Felder:* ${missingArr.join(", ")}`);
@@ -190,7 +200,7 @@ export async function handlePinSubmission(
       detailLines.push(`*⚠️ Typabweichungen:*\n${tmLines.join("\n")}`);
     }
     if (detailLines.length === 0) {
-      detailLines.push("_Keine Detail-Infos verfügbar_");
+      detailLines.push("_Keine Abweichungen vorhanden_");
     }
 
     const confirmationBlocks: SlackBlock[] = [
@@ -221,7 +231,7 @@ export async function handlePinSubmission(
 
     const updatedBlocks = [...cleanedBlocks, ...confirmationBlocks];
 
-    // d) Chat-Update ausführen
+    // e) Chat-Update an Slack senden
     const resp = await axios.post(
       "https://slack.com/api/chat.update",
       {
@@ -239,7 +249,7 @@ export async function handlePinSubmission(
     );
     console.log("▶️ Slack API chat.update response:", resp.data);
 
-    // e) aktualisierte Blöcke wieder in KV speichern
+    // f) Aktualisierte Blöcke in KV speichern
     await kvInstance.set(["rawBlocks", key], updatedBlocks);
     console.log("✅ KV: rawBlocks updated für", key);
   } catch (e) {
@@ -256,7 +266,7 @@ export async function handlePinSubmission(
     });
     const child = cmd.spawn();
     const status = await child.status;
-    console.log(`[api-tester] erneuter Durchlauf mit Exit-Code ${status.code}`);
+    console.log(`[api-tester] Neuer Durchlauf mit Exit-Code ${status.code}`);
   } catch (e) {
     console.error("❌ Fehler beim Neustarten der Tests:", e);
   }

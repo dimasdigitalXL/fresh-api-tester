@@ -11,6 +11,9 @@ import {
 import type { SchemaUpdate } from "./src/api-tester/core/gitPush.ts";
 import { sendSlackReport } from "./src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
 import type { TestResult } from "./src/api-tester/core/apiCaller.ts";
+import { join } from "https://deno.land/std@0.216.0/path/mod.ts";
+import { loadExpectedSchema } from "./src/api-tester/core/structureAnalyzer.ts";
+import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
 
 /**
  * Führt genau einen Endpoint-Test aus, gibt im Terminal
@@ -53,53 +56,100 @@ export async function runTestSingle(endpointName: string): Promise<void> {
 
   // 5) Konsolen-Ausgabe
   console.log(`\n=== Test Single: "${endpoint.name}" ===`);
-  console.log(`HTTP-Status:      ${res.statusCode}`);
-  console.log(`Erfolg:           ${res.success ? "✅ OK" : "❌ FEHLER"}`);
+  console.log(`HTTP-Status:      ${res.status}`);
+  const hasIssues = res.expectedMissing ||
+    res.missingFields.length > 0 ||
+    res.extraFields.length > 0 ||
+    res.typeMismatches.length > 0;
+  console.log(`Erfolg:           ${hasIssues ? "❌ FEHLER" : "✅ OK"}`);
 
   // 6) Strukturvergleich und JSON-Ausgabe
-  if (endpoint.expectedStructure) {
+  if (endpoint.expectedStructure || !res.expectedMissing) {
     console.log("\n--- Struktur-Vergleich ---");
-    console.log(`Erwartete Datei:  ${res.expectedFile}`);
-    console.log(
-      res.expectedMissing
-        ? "⚠️ Erwartete Datei fehlt!"
-        : "✅ Erwartete Datei vorhanden",
-    );
-    console.log(
-      res.missingFields.length > 0
-        ? `❌ Fehlende Felder:    ${res.missingFields.join(", ")}`
-        : "✅ Fehlende Felder:    keine",
-    );
-    console.log(
-      res.extraFields.length > 0
-        ? `➕ Zusätzliche Felder: ${res.extraFields.join(", ")}`
-        : "✅ Zusätzliche Felder: keine",
-    );
-    if (res.typeMismatches.length > 0) {
-      console.log("⚠️ Typ-Abweichungen:");
-      for (const m of res.typeMismatches) {
-        console.log(
-          `   • ${m.path}: erwartet ${m.expected}, erhalten ${m.actual}`,
-        );
-      }
+    if (res.expectedMissing) {
+      console.log(`⚠️ Erwartete Datei fehlt! (${res.expectedFile})`);
     } else {
-      console.log("✅ Typ-Abweichungen:   keine");
+      console.log(`Erwartete Datei:  ${res.expectedFile}`);
+      if (res.missingFields.length > 0) {
+        console.log(`❌ Fehlende Felder:    ${res.missingFields.join(", ")}`);
+      } else {
+        console.log("✅ Fehlende Felder:    keine");
+      }
+      if (res.extraFields.length > 0) {
+        console.log(`➕ Zusätzliche Felder: ${res.extraFields.join(", ")}`);
+      } else {
+        console.log("✅ Zusätzliche Felder: keine");
+      }
+      if (res.typeMismatches.length > 0) {
+        console.log("⚠️ Typ-Abweichungen:");
+        for (const m of res.typeMismatches) {
+          console.log(
+            `   • ${m.path}: erwartet ${m.expected}, erhalten ${m.actual}`,
+          );
+        }
+      } else {
+        console.log("✅ Typ-Abweichungen:   keine");
+      }
     }
 
+    // 6a) Erwartetes JSON einlesen (falls vorhanden)
     console.log("\n--- Erwartetes JSON (parsed) ---");
-    if (res.expectedData !== undefined) {
-      console.log(JSON.stringify(res.expectedData, null, 2));
+    if (!res.expectedMissing && res.expectedFile) {
+      try {
+        // Pfad ermitteln
+        const expectedPath = endpoint.expectedStructure
+          ? join(Deno.cwd(), "src", "api-tester", endpoint.expectedStructure)
+          : await (async () => {
+            // Suche erste passende Datei
+            const key = endpoint.name.replace(/\s+/g, "_");
+            const expectedDir = join(
+              Deno.cwd(),
+              "src",
+              "api-tester",
+              "expected",
+            );
+            for await (const entry of Deno.readDir(expectedDir)) {
+              if (!entry.isFile) continue;
+              if (entry.name.startsWith(key) && entry.name.endsWith(".json")) {
+                return join(expectedDir, entry.name);
+              }
+            }
+            throw new Error("Erwartete Datei nicht gefunden");
+          })();
+        if (existsSync(expectedPath)) {
+          const expectedSchema = await loadExpectedSchema(
+            endpoint.name.replace(/\s+/g, "_"),
+            expectedPath,
+          );
+          console.log(JSON.stringify(expectedSchema, null, 2));
+        } else {
+          console.log(
+            "⚠️ Erwartete Datei existiert nicht auf dem Dateisystem.",
+          );
+        }
+      } catch {
+        console.log("⚠️ Kein erwartetes JSON geladen.");
+      }
     } else {
       console.log("⚠️ Kein erwartetes JSON geladen.");
     }
 
+    // 6b) Tatsächliche JSON ausgeben
     console.log("\n--- Tatsächliche JSON (parsed) ---");
-    console.log(JSON.stringify(res.actualData, null, 2));
+    if (res.actualData !== undefined) {
+      console.log(JSON.stringify(res.actualData, null, 2));
+    } else {
+      console.log("⚠️ Keine tatsächliche JSON-Daten verfügbar.");
+    }
   } else {
     console.log(
       "\nℹ️ Kein erwartetes Schema definiert – nur tatsächliches JSON:",
     );
-    console.log(JSON.stringify(res.actualData, null, 2));
+    if (res.actualData !== undefined) {
+      console.log(JSON.stringify(res.actualData, null, 2));
+    } else {
+      console.log("⚠️ Keine tatsächliche JSON-Daten verfügbar.");
+    }
   }
 
   // 7) Slack-Report senden (außer DISABLE_SLACK=true)
@@ -111,7 +161,7 @@ export async function runTestSingle(endpointName: string): Promise<void> {
   }
 
   // 8) Exit-Code: 0 bei Erfolg, 1 bei Fehler
-  Deno.exit(res.success ? 0 : 1);
+  Deno.exit(hasIssues ? 1 : 0);
 }
 
 if (import.meta.main) {

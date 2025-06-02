@@ -14,12 +14,14 @@ export interface CompareResult {
 
 /**
  * Vergleicht zwei JSON-Schemata (erwartet vs. aktuell).
- * - Arrays: jedes Element gegen das erste erwartete Element prüfen
- * - Primitive: Typen vergleichen (string, number, null, boolean)
- * - Objekte: rekursiver Key-by-Key-Abgleich
+ * - Arrays: jedes Element gegen das erste erwartete Element prüfen.
+ *   Wenn das erwartete Array leer ist, werden alle aktuellen Indizes als extraFields markiert.
+ * - Primitive: Typen vergleichen (string, number, null, boolean).
+ * - Objekte: rekursiver Key-by-Key-Abgleich.
  *
- * @param expectedRaw Das erwartete Schema (z.B. transformValues-Output)
- * @param actualRaw   Das aktuelle Schema (z.B. transformValues(actualData))
+ * @param expectedRaw Das erwartete Schema (z.B. transformValues-Output).
+ * @param actualRaw   Das aktuelle Schema (z.B. transformValues(actualData)).
+ * @returns           Ein Objekt mit Listen der fehlenden, zusätzlichen und typabweichenden Felder.
  */
 export function compareStructures(
   expectedRaw: unknown,
@@ -34,14 +36,19 @@ export function compareStructures(
     const expIsArr = Array.isArray(expected);
     const actIsArr = Array.isArray(actual);
     if (expIsArr && actIsArr) {
-      if ((expected as unknown[]).length > 0) {
-        // Vergleiche jedes Element der aktuellen Liste mit dem ersten erwarteten
-        for (let i = 0; i < (actual as unknown[]).length; i++) {
-          recurse(
-            (expected as unknown[])[0],
-            (actual as unknown[])[i],
-            `${path}[${i}]`,
-          );
+      const expArr = expected as unknown[];
+      const actArr = actual as unknown[];
+
+      if (expArr.length > 0) {
+        // Vergleich jedes aktuellen Elements mit dem ersten erwarteten Element
+        for (let i = 0; i < actArr.length; i++) {
+          recurse(expArr[0], actArr[i], `${path}[${i}]`);
+        }
+      } else {
+        // Erwartetes Array ist leer → alle aktuellen Elemente als extra markieren
+        for (let i = 0; i < actArr.length; i++) {
+          const idxPath = `${path}[${i}]`;
+          extraFields.push(idxPath);
         }
       }
       return;
@@ -51,8 +58,8 @@ export function compareStructures(
     if (expIsArr !== actIsArr) {
       typeMismatches.push({
         path: path || "<root>",
-        expected: expIsArr ? "array" : typeof expected,
-        actual: actIsArr ? "array" : typeof actual,
+        expected: expIsArr ? "array" : getType(expected),
+        actual: actIsArr ? "array" : getType(actual),
       });
       return;
     }
@@ -79,8 +86,8 @@ export function compareStructures(
     if (expIsObj !== actIsObj) {
       typeMismatches.push({
         path: path || "<root>",
-        expected: expIsObj ? "object" : typeof expected,
-        actual: actIsObj ? "object" : typeof actual,
+        expected: expIsObj ? "object" : getType(expected),
+        actual: actIsObj ? "object" : getType(actual),
       });
       return;
     }
@@ -89,7 +96,7 @@ export function compareStructures(
     const expObj = expected as Record<string, unknown>;
     const actObj = actual as Record<string, unknown>;
 
-    // 5a) Fehlende Keys
+    // 5a) Fehlende Keys (in expected, nicht in actual)
     for (const key of Object.keys(expObj)) {
       const subPath = path ? `${path}.${key}` : key;
       if (!(key in actObj)) {
@@ -98,7 +105,8 @@ export function compareStructures(
         recurse(expObj[key], actObj[key], subPath);
       }
     }
-    // 5b) Zusätzliche Keys
+
+    // 5b) Zusätzliche Keys (in actual, nicht in expected)
     for (const key of Object.keys(actObj)) {
       if (!(key in expObj)) {
         const subPath = path ? `${path}.${key}` : key;
@@ -109,4 +117,14 @@ export function compareStructures(
 
   recurse(expectedRaw, actualRaw, "");
   return { missingFields, extraFields, typeMismatches };
+}
+
+/**
+ * Hilfsfunktion, um den Typ eines Werts als String zu bekommen.
+ * Beispiel: getType("foo") → "string", getType([1,2]) → "array"
+ */
+function getType(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
 }

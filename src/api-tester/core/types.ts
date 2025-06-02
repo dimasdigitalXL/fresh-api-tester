@@ -1,16 +1,33 @@
 // src/api-tester/core/types.ts
 
+/**
+ * Repräsentiert ein JSON-Objekt, etwa das Ergebnis eines API-Calls.
+ */
 export type Schema = Record<string, unknown>;
 
+/**
+ * Beschreibt eine Typabweichung in einem Schema-Vergleich.
+ * Beispiel:
+ *   path = "customer.address.zip"
+ *   expected = "string"
+ *   actual   = "null"
+ */
 export interface TypeMismatch {
-  path: string; // z.B. "customer.address.zip"
-  expected: string; // z.B. "string"
-  actual: string; // z.B. "null"
+  path: string;
+  expected: string;
+  actual: string;
 }
 
+/**
+ * Ergebnis des Schema-Vergleichs:
+ *  - missingFields: im erwarteten Schema vorhanden, in der Antwort nicht.
+ *  - extraFields:   in der Antwort vorhanden, aber nicht im erwarteten Schema.
+ *  - typeMismatches: Felder, bei denen der Typ abweicht.
+ *  - updatedSchema: Das transformierte Schema (z.B. actual-Response, das später versioniert wird).
+ */
 export interface Diff {
-  missingFields: string[]; // im expected, aber nicht im actual
-  extraFields: string[]; // im actual, aber nicht im expected
-  typeMismatches: TypeMismatch[]; // Felder mit falschem Typ
-  updatedSchema: Schema; // transformValues(actualResponse)
+  missingFields: string[];
+  extraFields: string[];
+  typeMismatches: TypeMismatch[];
+  updatedSchema: Schema;
 }

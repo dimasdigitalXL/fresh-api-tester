@@ -17,48 +17,76 @@ function createInMemoryKv(): Deno.Kv {
   const toKey = (key: Deno.KvKey) => (key as string[]).join("::");
 
   return {
-    get<T>(key: Deno.KvKey) {
+    // get<T> muss ein KvEntry<T> zurückliefern, value: T
+    get<T>(key: Deno.KvKey): Promise<Deno.KvEntry<T>> {
       const k = toKey(key);
+      const v = store.get(k) as T;
       return Promise.resolve({
         key,
-        value: store.get(k) as T,
+        value: v as T,
         versionstamp: "",
       });
     },
-    set(key: Deno.KvKey, value: unknown) {
-      store.set(toKey(key), value);
-      return Promise.resolve({ key, versionstamp: "" });
+
+    // set() muss KvEntry<void> zurückliefern, value: void (undefined)
+    set(key: Deno.KvKey, _value: unknown): Promise<Deno.KvEntry<void>> {
+      store.set(toKey(key), _value);
+      return Promise.resolve({
+        key,
+        value: undefined,
+        versionstamp: "",
+      });
     },
-    delete(key: Deno.KvKey) {
+
+    // delete() ebenfalls KvEntry<void>
+    delete(key: Deno.KvKey): Promise<Deno.KvEntry<void>> {
       store.delete(toKey(key));
-      return Promise.resolve({ key, versionstamp: "" });
+      return Promise.resolve({
+        key,
+        value: undefined,
+        versionstamp: "",
+      });
     },
-    list<T>(_opts?: unknown) {
-      async function* gen() {/* leer */}
+
+    // list<T> gibt ein AsyncIterable<Deno.KvEntry<T>> zurück (hier leer)
+    list<T>(_opts?: unknown): AsyncIterable<Deno.KvEntry<T>> {
+      async function* gen(): AsyncGenerator<Deno.KvEntry<T>> {
+        // keine Einträge
+      }
       return gen();
     },
-    getMany(keys: Deno.KvKey[]) {
-      return Promise.resolve(
-        keys.map((key) => ({ key, value: store.get(toKey(key)) })),
-      );
+
+    // getMany liefert für jeden Schlüssel ein KvEntry<T>, value: T
+    getMany(keys: Deno.KvKey[]): Promise<Array<Deno.KvEntry<unknown>>> {
+      const entries: Deno.KvEntry<unknown>[] = keys.map((key) => {
+        const k = toKey(key);
+        const v = store.get(k);
+        return {
+          key,
+          value: v as unknown,
+          versionstamp: "",
+        };
+      });
+      return Promise.resolve(entries);
     },
+
     atomic() {
-      throw new Error("KV.atomic() nicht implementiert im Stub");
+      throw new Error("KV.atomic() nicht implementiert im In-Memory-Stub");
     },
     enqueue() {
       return Promise.reject(
-        new Error("KV.enqueue() nicht implementiert im Stub"),
+        new Error("KV.enqueue() nicht implementiert im In-Memory-Stub"),
       );
     },
     listenQueue() {
-      throw new Error("KV.listenQueue() nicht implementiert im Stub");
+      throw new Error("KV.listenQueue() nicht implementiert im In-Memory-Stub");
     },
     restore() {
       return Promise.resolve();
     },
     transaction() {
       return Promise.reject(
-        new Error("KV.transaction() nicht implementiert im Stub"),
+        new Error("KV.transaction() nicht implementiert im In-Memory-Stub"),
       );
     },
   } as unknown as Deno.Kv;

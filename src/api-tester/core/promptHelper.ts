@@ -13,15 +13,15 @@ export async function promptUserForId(message: string): Promise<string> {
   // Prompt ausgeben
   await Deno.stdout.write(encoder.encode(message));
 
-  // Buffer zum Einlesen
+  // Buffer zum Einlesen (1 KB)
   const buf = new Uint8Array(1024);
   const bytesRead = await Deno.stdin.read(buf);
   if (!bytesRead) {
-    // Keine Daten gelesen
+    // Keine Daten gelesen (EOF o.ä.)
     return "";
   }
 
-  // Bytes in String umwandeln und trimmen
+  // Bytes in String umwandeln und nur Zeilenumbruch am Ende entfernen
   const input = decoder.decode(buf.subarray(0, bytesRead));
   return input.replace(/\r?\n$/, "");
 }

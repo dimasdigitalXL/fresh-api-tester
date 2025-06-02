@@ -1,7 +1,11 @@
 // src/api-tester/core/validateConfig.ts
-import { existsSync } from "https://deno.land/std@0.177.0/fs/mod.ts";
+
+import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
 import { resolveProjectPath } from "./utils.ts";
 
+/**
+ * Beschreibt die Struktur eines Endpoints, wie er in config.json definiert ist.
+ */
 export interface EndpointConfig {
   name: string;
   bodyFile?: string;
@@ -13,30 +17,38 @@ export interface EndpointConfig {
  * Gibt Warnungen für fehlende Dateien aus (z. B. request-Bodies oder expected-Strukturen).
  *
  * @param endpoints - Liste aller Endpunkte aus der config.json
+ * @returns `true`, wenn mindestens eine Datei fehlt, sonst `false`
  */
-export function validateConfig(endpoints: EndpointConfig[]) {
-  let hasWarnings = false;
+export function validateConfig(endpoints: EndpointConfig[]): boolean {
+  let missingDetected = false;
 
   for (const ep of endpoints) {
+    // 1) Prüfe, ob bodyFile existiert (falls angegeben)
     if (ep.bodyFile) {
       const bodyPath = resolveProjectPath(ep.bodyFile);
       if (!existsSync(bodyPath)) {
-        console.warn(`⚠️ Warnung: Datei fehlt → ${ep.bodyFile} (${ep.name})`);
-        hasWarnings = true;
+        console.warn(
+          `⚠️ Warnung: request-Body-Datei fehlt: "${ep.bodyFile}" für Endpoint "${ep.name}".`,
+        );
+        missingDetected = true;
       }
     }
+
+    // 2) Prüfe, ob expectedStructure existiert (falls angegeben)
     if (ep.expectedStructure) {
       const expectedPath = resolveProjectPath(ep.expectedStructure);
       if (!existsSync(expectedPath)) {
         console.warn(
-          `⚠️ Warnung: Datei fehlt → ${ep.expectedStructure} (${ep.name})`,
+          `⚠️ Warnung: expected-Schema-Datei fehlt: "${ep.expectedStructure}" für Endpoint "${ep.name}".`,
         );
-        hasWarnings = true;
+        missingDetected = true;
       }
     }
   }
 
-  if (!hasWarnings) {
-    console.log("\n✅ Alle Referenzen in config.json vorhanden.\n");
+  if (!missingDetected) {
+    console.log("✅ Alle referenzierten Dateien in config.json vorhanden.");
   }
+
+  return missingDetected;
 }

@@ -71,8 +71,8 @@ export async function testEndpoint(
   try {
     url = buildUrl(ep.url, dynamicParamsOverride);
     console.debug(`[DEBUG]  → finale URL: ${url}`);
-  } catch (_err: unknown) {
-    const msg = _err instanceof Error ? _err.message : String(_err);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`Ungültige URL für "${ep.name}": ${msg}`);
   }
 
@@ -94,11 +94,10 @@ export async function testEndpoint(
   if (ep.bodyFile) {
     try {
       init.body = await Deno.readTextFile(join(Deno.cwd(), ep.bodyFile));
-    } catch (_err: unknown) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       console.warn(
-        `⚠️ bodyFile "${ep.bodyFile}" für "${ep.name}" nicht geladen: ${
-          (_err as Error).message
-        }`,
+        `⚠️ bodyFile "${ep.bodyFile}" für "${ep.name}" nicht geladen: ${msg}`,
       );
     }
   }
@@ -118,10 +117,16 @@ export async function testEndpoint(
 
   // 5) HTTP-Request ausführen
   console.debug(`[DEBUG]  → sende Request...`);
-  const resp = await fetch(url, init);
+  let resp: Response;
+  try {
+    resp = await fetch(url, init);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Request für "${ep.name}" fehlgeschlagen: ${msg}`);
+  }
   result.status = resp.status;
 
-  // nur einmal aus dem Stream lesen
+  // 6) Antwort nur einmal lesen
   const rawText = await resp.text();
   let parsed: unknown;
   try {
@@ -133,37 +138,45 @@ export async function testEndpoint(
   }
   result.body = parsed;
 
-  // 6) Schema-Vergleich
+  // 7) Schema-Vergleich
   try {
+    // a) Pfad zur erwarteten Struktur bestimmen
     const fsPath = ep.expectedStructure
       ? join(Deno.cwd(), "src", "api-tester", ep.expectedStructure)
       : await findExpectedFile(key);
     console.debug(`[DEBUG]  → verwende Schema-Datei: ${fsPath}`);
 
+    // b) Struktur analysieren
     const diff = await analyzeResponse(key, fsPath, parsed);
     result.missingFields = diff.missingFields;
     result.extraFields = diff.extraFields;
     result.typeMismatches = diff.typeMismatches;
     result.actualData = diff.updatedSchema;
-    result.expectedFile = ep.expectedStructure ?? fsPath.split("/").pop();
-  } catch (_err: unknown) {
+    result.expectedFile = ep.expectedStructure ?? fsPath.split("/").pop()!;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.warn(
-      `⚠️ Schema-Vergleich für "${ep.name}" fehlgeschlagen: ${
-        (_err as Error).message
-      }`,
+      `⚠️ Schema-Vergleich für "${ep.name}" fehlgeschlagen: ${msg}`,
     );
     result.expectedMissing = true;
   }
 
-  // 7) LOCAL_MODE → Roh-Antwort lokal speichern
+  // 8) LOCAL_MODE → Roh-Antwort lokal speichern
   if (Deno.env.get("LOCAL_MODE") === "true") {
     const outDir = join(Deno.cwd(), "src", "api-tester", "responses");
-    await Deno.mkdir(outDir, { recursive: true });
-    const txt = typeof parsed === "string"
-      ? parsed
-      : JSON.stringify(parsed, null, 2);
-    await Deno.writeTextFile(join(outDir, `${key}.json`), txt);
-    console.log(`📝 [LOCAL] Response für "${ep.name}" gespeichert`);
+    try {
+      await Deno.mkdir(outDir, { recursive: true });
+      const txt = typeof parsed === "string"
+        ? parsed
+        : JSON.stringify(parsed, null, 2);
+      await Deno.writeTextFile(join(outDir, `${key}.json`), txt);
+      console.log(`📝 [LOCAL] Response für "${ep.name}" gespeichert`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `⚠️ Konnten lokale Response für "${ep.name}" nicht speichern: ${msg}`,
+      );
+    }
   }
 
   return result;

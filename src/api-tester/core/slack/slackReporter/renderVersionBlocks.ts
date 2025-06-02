@@ -5,6 +5,11 @@ import type { VersionUpdate } from "../../endpointRunner.ts";
 
 /**
  * Rendert einen Abschnitt für jede erkannte neue API-Version.
+ * Bei mehreren Updates zeigt es eine Überschrift, dann pro Update einen Eintrag,
+ * und schließt mit einem Divider ab.
+ *
+ * @param versionUpdates Liste von VersionUpdate-Objekten
+ * @returns Array von Slack-Blocks für die Version-Informationen
  */
 export function renderVersionBlocks(
   versionUpdates: VersionUpdate[],
@@ -13,6 +18,7 @@ export function renderVersionBlocks(
     return [];
   }
 
+  // Header mit kurzer Erläuterung
   const header: Block = {
     type: "section",
     text: {
@@ -21,6 +27,7 @@ export function renderVersionBlocks(
     },
   };
 
+  // Für jedes Update ein eigener Section-Block
   const sections: Block[] = versionUpdates.map((update) => ({
     type: "section",
     text: {
@@ -29,6 +36,7 @@ export function renderVersionBlocks(
     },
   }));
 
+  // Abschließender Divider, um optisch abzugrenzen
   const divider: Block = { type: "divider" };
 
   return [header, ...sections, divider];

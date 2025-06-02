@@ -27,6 +27,10 @@ export interface Config {
   gitRepo: GitRepoInfo;
 }
 
+/**
+ * Assert-Hilfsfunktion, um sicherzustellen, dass ein Wert ein Objekt ist.
+ * Wirft eine Exception, wenn nicht.
+ */
 function assertObject(
   x: unknown,
   ctx: string,
@@ -36,39 +40,43 @@ function assertObject(
   }
 }
 
+/**
+ * Lädt die Konfiguration aus einer config.json-Datei.
+ * Sucht in mehreren vordefinierten Pfaden (bzw. über CONFIG_PATH in ENV).
+ * Validiert anschließend, dass:
+ *  - "endpoints" ein nicht-leeres Array ist,
+ *  - jeder Eintrag in endpoints über name, url und method verfügt,
+ *  - ggf. owner, repo und branch für gitRepo vorhanden sind (ENV oder JSON).
+ *
+ * @returns Konfigurationsobjekt mit endpoints und gitRepo
+ * @throws Error, wenn keine gültige config.json gefunden oder Felder ungültig sind.
+ */
 export async function loadConfig(): Promise<Config> {
   // 1) Mögliche Orte für config.json
   const envPath = Deno.env.get("CONFIG_PATH");
   const candidates = envPath ? [envPath] : [
-    // im Root (z.B. lokal beim Entwickeln)
     "config.json",
-    // unter src/api-tester (lokale Projektstruktur)
     "src/api-tester/config.json",
-    // unter api-tester (Deno Deploy könnte nur 'src' als CWD haben)
     "api-tester/config.json",
-    // evtl. direkt im src-Ordner
     "src/config.json",
   ];
 
-  let raw: string | undefined;
+  let rawConfig: string | undefined;
   let usedPath: string | undefined;
 
   for (const rel of candidates) {
-    const p = resolveProjectPath(rel);
-    if (existsSync(p)) {
-      raw = await Deno.readTextFile(p);
-      usedPath = p;
+    const absolute = resolveProjectPath(rel);
+    if (existsSync(absolute)) {
+      rawConfig = await Deno.readTextFile(absolute);
+      usedPath = absolute;
       break;
     }
   }
 
-  if (!raw || !usedPath) {
+  if (!rawConfig || !usedPath) {
+    const tried = candidates.map((c) => resolveProjectPath(c)).join("\n  ");
     throw new Error(
-      `Fehler: Keine config.json gefunden. Ich habe gesucht unter:\n  ${
-        candidates
-          .map((c) => resolveProjectPath(c))
-          .join("\n  ")
-      }`,
+      `Fehler: Keine config.json gefunden. Ich habe gesucht unter:\n  ${tried}`,
     );
   }
 
@@ -77,12 +85,12 @@ export async function loadConfig(): Promise<Config> {
   // 2) JSON parsen
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(rawConfig);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`Ungültiges JSON in "${usedPath}": ${msg}`);
   }
-  assertObject(parsed, `Konfiguration in "${usedPath}"`);
+  assertObject(parsed, `Inhalt von "${usedPath}"`);
 
   // 3) Endpoints validieren
   const endpointsRaw = (parsed as Record<string, unknown>).endpoints;
@@ -91,28 +99,35 @@ export async function loadConfig(): Promise<Config> {
       `"endpoints" in "${usedPath}" muss ein nicht-leeres Array sein.`,
     );
   }
+
   const endpoints: EndpointConfig[] = endpointsRaw.map((e, i) => {
     assertObject(e, `endpoints[${i}]`);
+
     const name = e.name;
     const url = e.url;
     const method = e.method;
-    if (typeof name !== "string" || !name) {
+
+    if (typeof name !== "string" || name.trim() === "") {
       throw new Error(
         `endpoints[${i}].name muss ein nicht-leerer String sein.`,
       );
     }
-    if (typeof url !== "string" || !url) {
+    if (typeof url !== "string" || url.trim() === "") {
       throw new Error(`endpoints[${i}].url muss ein nicht-leerer String sein.`);
     }
-    if (typeof method !== "string") {
-      throw new Error(`endpoints[${i}].method muss ein String sein.`);
+    if (typeof method !== "string" || method.trim() === "") {
+      throw new Error(
+        `endpoints[${i}].method muss ein nicht-leerer String sein.`,
+      );
     }
+
     return {
       name,
       url,
       method: method as Method,
       requiresId: Boolean(e.requiresId),
-      expectedStructure: typeof e.expectedStructure === "string"
+      expectedStructure: typeof e.expectedStructure === "string" &&
+          e.expectedStructure.trim() !== ""
         ? e.expectedStructure
         : undefined,
       headers: typeof e.headers === "object" && e.headers !== null
@@ -121,28 +136,37 @@ export async function loadConfig(): Promise<Config> {
       query: typeof e.query === "object" && e.query !== null
         ? (e.query as Record<string, string | number>)
         : undefined,
-      bodyFile: typeof e.bodyFile === "string" ? e.bodyFile : undefined,
+      bodyFile: typeof e.bodyFile === "string" && e.bodyFile.trim() !== ""
+        ? e.bodyFile
+        : undefined,
     };
   });
 
-  // 4) Git-Repo aus ENV oder config.json
+  // 4) Git-Repo-Info: zuerst aus ENV lesen, sonst aus JSON
   let owner = Deno.env.get("GITHUB_OWNER") ?? undefined;
   let repo = Deno.env.get("GITHUB_REPO") ?? undefined;
-  let branch = Deno.env.get("GITHUB_BRANCH") ?? "main";
+  let branch = Deno.env.get("GITHUB_BRANCH") ?? undefined;
 
   if (!owner || !repo) {
     const rawGit = (parsed as Record<string, unknown>).gitRepo;
     assertObject(rawGit, `"gitRepo" in "${usedPath}"`);
-    if (typeof rawGit.owner === "string") owner = rawGit.owner;
-    if (typeof rawGit.repo === "string") repo = rawGit.repo;
-    if (typeof rawGit.branch === "string") branch = rawGit.branch;
+
+    if (!owner && typeof rawGit.owner === "string") owner = rawGit.owner;
+    if (!repo && typeof rawGit.repo === "string") repo = rawGit.repo;
+    if (!branch && typeof rawGit.branch === "string") branch = rawGit.branch;
   }
 
+  // 5) Validieren, dass owner und repo jetzt gesetzt sind
   if (!owner || !repo) {
     throw new Error(
       `Bitte GITHUB_OWNER und GITHUB_REPO als ENV-Variablen setzen oder in "${usedPath}" unter "gitRepo" angeben.`,
     );
   }
+  // Branch auf "main" defaulten, falls nicht gesetzt
+  branch = branch ?? "main";
 
-  return { endpoints, gitRepo: { owner, repo, branch } };
+  return {
+    endpoints,
+    gitRepo: { owner, repo, branch },
+  };
 }

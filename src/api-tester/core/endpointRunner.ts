@@ -19,6 +19,13 @@ export interface VersionUpdate {
   expectedStructure?: string;
 }
 
+/**
+ * Testet einen einzelnen Endpoint:
+ * 1) Ersetzt dynamische Pfad-Parameter (ID, etc.)
+ * 2) Prüft auf neue API-Version (via checkAndUpdateApiVersion)
+ * 3) Baut finale URL (buildUrl) und ruft testEndpoint auf
+ * 4) Bei Schema-Drift legt es ein neues _vN.json an und fügt es zu schemaUpdates hinzu
+ */
 export async function runSingleEndpoint(
   endpoint: EndpointConfig,
   _config: { endpoints: EndpointConfig[]; gitRepo: RepoInfo },
@@ -28,7 +35,7 @@ export async function runSingleEndpoint(
 ): Promise<TestResult | null> {
   console.debug(`[DEBUG] Starte runSingleEndpoint für "${endpoint.name}"`);
 
-  // 1) Dynamische Pfad-Parameter (wie gehabt)
+  // 1) Dynamische Pfad-Parameter (falls requiresId = true)
   if (endpoint.requiresId) {
     const key = endpoint.name.replace(/\s+/g, "_");
     const defRaw = _defaultIds[key] ?? _defaultIds[endpoint.name];
@@ -68,7 +75,7 @@ export async function runSingleEndpoint(
     }
   }
 
-  // 2) API-Versionserkennung (wie gehabt)
+  // 2) API-Versionserkennung
   const versionInfo = await checkAndUpdateApiVersion(
     endpoint,
     dynamicParamsOverride,
@@ -83,7 +90,7 @@ export async function runSingleEndpoint(
     return null;
   }
 
-  // 3) URL-Build & Test (wie gehabt)
+  // 3) URL-Build & Test
   let finalUrl: string;
   try {
     finalUrl = buildUrl(versionInfo.url, dynamicParamsOverride);
@@ -102,7 +109,7 @@ export async function runSingleEndpoint(
     `[DEBUG]  result: missing=${result.missingFields.length}, extra=${result.extraFields.length}, typeMismatches=${result.typeMismatches.length}`,
   );
 
-  // 4) Schema-Drift → neue _vN.json anlegen (aber nur in-memory, nicht sofort Git)
+  // 4) Schema-Drift → neuen _vN.json-Entwurf anlegen
   const hasDrift = result.missingFields.length > 0 ||
     result.extraFields.length > 0 ||
     result.typeMismatches.length > 0;
@@ -110,9 +117,15 @@ export async function runSingleEndpoint(
     const key = endpoint.name.replace(/\s+/g, "_");
     const expectedDir = resolveProjectPath("src", "api-tester", "expected");
     let maxV = 0;
-    for await (const file of expandGlob(join(expectedDir, `${key}_v*.json`))) {
-      const m = basename(file.path).match(/_v(\d+)\.json$/);
-      if (m) maxV = Math.max(maxV, Number(m[1]));
+    try {
+      for await (
+        const file of expandGlob(join(expectedDir, `${key}_v*.json`))
+      ) {
+        const m = basename(file.path).match(/_v(\d+)\.json$/);
+        if (m) maxV = Math.max(maxV, Number(m[1]));
+      }
+    } catch (err) {
+      console.warn(`⚠️ Fehler beim Scannen von _vN.json für "${key}": ${err}`);
     }
     const nextName = `${key}_v${maxV + 1}.json`;
     const fsPath = join(expectedDir, nextName);
@@ -126,7 +139,12 @@ export async function runSingleEndpoint(
   return result;
 }
 
-/** Baut finale URL wie in apiCaller, hier kopiert */
+/**
+ * Baut finale URL, indem es Platzhalter ${KEY} ersetzt:
+ * - Zunächst aus dynamicParamsOverride
+ * - Dann aus Deno.env
+ * Wirft, wenn ein Platzhalter keinen Wert hat.
+ */
 function buildUrl(template: string, params: Record<string, string>): string {
   return template.replace(/\$\{([^}]+)\}/g, (_m, key) => {
     const p = params[key] ?? Deno.env.get(key);
