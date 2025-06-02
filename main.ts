@@ -7,28 +7,9 @@
 /// <reference lib="deno.unstable" />
 
 import "$std/dotenv/load.ts";
-
 import { start } from "$fresh/server.ts";
 import manifest from "./fresh.gen.ts";
 import config from "./fresh.config.ts";
 
-// --- Neu: importiere deine Test-Runner Funktion ---
-import { runAllTests } from "./run-tests.ts";
-
-// Cron-Job: führe deine Tests alle 12 Stunden aus.
-// Name = "run-tests-every-12h", Schedule = "0 */12 * * *"
-Deno.cron(
-  "run-tests-every-12h",
-  "0 */12 * * *",
-  async () => {
-    console.log("⏰ [Cron] Starte API-Tests…");
-    try {
-      await runAllTests();
-      console.log("✅ [Cron] API-Tests erfolgreich durchlaufen");
-    } catch (err) {
-      console.error("❌ [Cron] API-Tests fehlgeschlagen:", err);
-    }
-  },
-);
-
+// In main.ts steht nur noch der Fresh-Server-Start:
 await start(manifest, config);
