@@ -12,21 +12,28 @@ import type { VersionUpdate } from "../../endpointRunner.ts";
 
 const MAX_BLOCKS_PER_MESSAGE = 50;
 
-/** Liefert das Keycap-Emoji für die Zahl n */
+/**
+ * Liefert für jede Ziffer von n das entsprechende Keycap-Emoji.
+ * Beispiel: 16 ⇒ ":eins::sechs:"
+ */
 function numberEmoji(n: number): string {
-  const map: Record<number, string> = {
-    1: "1️⃣",
-    2: "2️⃣",
-    3: "3️⃣",
-    4: "4️⃣",
-    5: "5️⃣",
-    6: "6️⃣",
-    7: "7️⃣",
-    8: "8️⃣",
-    9: "9️⃣",
-    10: "🔟",
+  const digitMap: Record<string, string> = {
+    "0": "0️⃣",
+    "1": "1️⃣",
+    "2": "2️⃣",
+    "3": "3️⃣",
+    "4": "4️⃣",
+    "5": "5️⃣",
+    "6": "6️⃣",
+    "7": "7️⃣",
+    "8": "8️⃣",
+    "9": "9️⃣",
   };
-  return map[n] ?? `${n}\u20E3`;
+  return n
+    .toString()
+    .split("")
+    .map((digit) => digitMap[digit] ?? digit)
+    .join("");
 }
 
 /** Teilt ein Array in Chunks der Länge `size` */
@@ -38,9 +45,14 @@ function chunkArray<T>(array: T[], size: number): T[][] {
   return chunks;
 }
 
+/**
+ * Sendet den Slack-Testbericht. Wenn `approver` gesetzt ist, wird
+ * ein zusätzlicher Hinweisblock ("Freigegeben von @user") eingefügt.
+ */
 export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: VersionUpdate[] = [],
+  approver?: string,
 ): Promise<void> {
   // 1) Alle Ergebnisse mit Schema-Issues sammeln
   const allIssues = testResults.filter((r) =>
@@ -68,10 +80,25 @@ export async function sendSlackReport(
   const headerBlocks = renderHeaderBlock(
     new Date().toLocaleDateString("de-DE"),
   ) as Block[];
+
+  // Wenn ein Approver übergeben wurde, einzeln einen Kontext-Block hinzufügen
+  if (approver) {
+    headerBlocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `*Freigegeben von:* <!subteam^${approver}>`,
+        },
+      ],
+    });
+  }
+
   const versionBlocks =
     (versionUpdates.length > 0
       ? renderVersionBlocks(versionUpdates)
       : []) as Block[];
+
   const statsBlocks = renderStatsBlock(
     testResults.length,
     testResults.length - allIssues.length,
@@ -121,6 +148,7 @@ export async function sendSlackReport(
       type: "section",
       text: {
         type: "mrkdwn",
+        // Beispiel: ":eins::sechs: *Get View Address* 🔴"
         text: `${numberEmoji(idx + 1)} *${r.endpointName}* ${icon}`,
       },
     });
