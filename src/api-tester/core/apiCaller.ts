@@ -4,6 +4,7 @@ import { join } from "https://deno.land/std@0.216.0/path/mod.ts";
 import type { EndpointConfig } from "./configLoader.ts";
 import { analyzeResponse } from "./structureAnalyzer.ts";
 import type { Schema } from "./types.ts";
+import { safeReplace } from "./utils.ts";
 
 /**
  * Ergebnis eines API-Tests inklusive Schema-Abgleich.
@@ -26,10 +27,6 @@ export interface TestResult {
   actualData?: Schema;
 }
 
-/**
- * Sucht im expected-Ordner nach einer Datei, die mit `key` beginnt.
- * Gibt den absoluten Pfad zurück oder wirft, wenn keine gefunden wurde.
- */
 async function findExpectedFile(key: string): Promise<string> {
   const expectedDir = join(Deno.cwd(), "src", "api-tester", "expected");
   for await (const entry of Deno.readDir(expectedDir)) {
@@ -41,10 +38,6 @@ async function findExpectedFile(key: string): Promise<string> {
   throw new Error(`Schema nicht gefunden: ${key}`);
 }
 
-/**
- * Ersetzt Platzhalter ${key} in der URL-Vorlage durch Werte aus params.
- * Wirft, wenn ein Platzhalter keinen Wert hat.
- */
 function buildUrl(template: string, params: Record<string, string>): string {
   return template.replace(/\$\{(\w+)\}/g, (_match, key) => {
     const val = params[key];
@@ -56,9 +49,25 @@ function buildUrl(template: string, params: Record<string, string>): string {
 }
 
 /**
- * Führt den HTTP-Request durch, parst die Antwort und vergleicht sie
- * mit dem erwarteten Schema.
+ * Ersetzt Header-Platzhalter ${KEY} durch Umgebungsvariablenwerte.
  */
+function replaceHeaderPlaceholders(
+  headers: Record<string, string> | undefined,
+): Record<string, string> {
+  if (!headers) return {};
+  const envVars = Deno.env.toObject();
+  const replaced: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    replaced[key] = safeReplace(value, envVars);
+    if (replaced[key] === "") {
+      console.warn(
+        `⚠️ Umgebungsvariable für Header "${key}" wurde nicht gefunden`,
+      );
+    }
+  }
+  return replaced;
+}
+
 export async function testEndpoint(
   ep: EndpointConfig,
   dynamicParamsOverride: Record<string, string> = {},
@@ -66,7 +75,6 @@ export async function testEndpoint(
   const key = ep.name.replace(/\s+/g, "_");
   console.debug(`[DEBUG] Starte testEndpoint für "${ep.name}" (key="${key}")`);
 
-  // 1) URL zusammenbauen
   let url: string;
   try {
     url = buildUrl(ep.url, dynamicParamsOverride);
@@ -76,7 +84,6 @@ export async function testEndpoint(
     throw new Error(`Ungültige URL für "${ep.name}": ${msg}`);
   }
 
-  // 2) Query-Parameter anhängen
   if (ep.query && Object.keys(ep.query).length > 0) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(ep.query)) {
@@ -86,11 +93,14 @@ export async function testEndpoint(
     console.debug(`[DEBUG]  → mit Query-Params: ${url}`);
   }
 
-  // 3) Fetch-Optionen zusammenstellen
+  const replacedHeaders = replaceHeaderPlaceholders(ep.headers);
+  console.debug("🔑 Finaler Header vor Request:", replacedHeaders);
+
   const init: RequestInit & { body?: string } = {
     method: ep.method,
-    headers: ep.headers ?? {},
+    headers: replacedHeaders,
   };
+
   if (ep.bodyFile) {
     try {
       init.body = await Deno.readTextFile(join(Deno.cwd(), ep.bodyFile));
@@ -102,7 +112,6 @@ export async function testEndpoint(
     }
   }
 
-  // 4) TestResult initialisieren
   const result: TestResult = {
     endpointName: ep.name,
     method: ep.method,
@@ -115,7 +124,6 @@ export async function testEndpoint(
     typeMismatches: [],
   };
 
-  // 5) HTTP-Request ausführen
   console.debug(`[DEBUG]  → sende Request...`);
   let resp: Response;
   try {
@@ -126,7 +134,6 @@ export async function testEndpoint(
   }
   result.status = resp.status;
 
-  // 6) Antwort nur einmal lesen
   const rawText = await resp.text();
   let parsed: unknown;
   try {
@@ -138,15 +145,12 @@ export async function testEndpoint(
   }
   result.body = parsed;
 
-  // 7) Schema-Vergleich
   try {
-    // a) Pfad zur erwarteten Struktur bestimmen
     const fsPath = ep.expectedStructure
       ? join(Deno.cwd(), "src", "api-tester", ep.expectedStructure)
       : await findExpectedFile(key);
     console.debug(`[DEBUG]  → verwende Schema-Datei: ${fsPath}`);
 
-    // b) Struktur analysieren
     const diff = await analyzeResponse(key, fsPath, parsed);
     result.missingFields = diff.missingFields;
     result.extraFields = diff.extraFields;
@@ -161,7 +165,6 @@ export async function testEndpoint(
     result.expectedMissing = true;
   }
 
-  // 8) LOCAL_MODE → Roh-Antwort lokal speichern
   if (Deno.env.get("LOCAL_MODE") === "true") {
     const outDir = join(Deno.cwd(), "src", "api-tester", "responses");
     try {
