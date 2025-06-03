@@ -1,5 +1,3 @@
-// src/api-tester/core/apiCaller.ts
-
 import axios from "https://esm.sh/axios@1.4.0";
 import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
 import { join } from "https://deno.land/std@0.216.0/path/mod.ts";
@@ -19,6 +17,9 @@ export interface Endpoint {
   headers?: Record<string, string>;
 }
 
+/**
+ * Ergebnis eines API-Tests.
+ */
 export interface TestResult {
   endpointName: string;
   method: Method;
@@ -29,11 +30,9 @@ export interface TestResult {
   missingFields: string[];
   extraFields: string[];
   typeMismatches: Array<{ path: string; expected: string; actual: string }>;
-  updatedStructure: string | null;
+  updatedStructure: Schema | null;
   expectedFile?: string;
   expectedMissing?: boolean;
-  /** Neu: tatsächliche Antwortdaten für Schema-Updates */
-  actualData?: Schema | string;
 }
 
 function findExpectedPath(relativePath: string): string | null {
@@ -59,7 +58,7 @@ export async function testEndpoint(
   dynamicParams: Record<string, string> = {},
 ): Promise<TestResult> {
   try {
-    // URL-Platzhalter ersetzen
+    // 1) URL-Platzhalter ersetzen
     let url = endpoint.url.replace(
       "${XENTRAL_ID}",
       Deno.env.get("XENTRAL_ID") ?? "",
@@ -68,13 +67,21 @@ export async function testEndpoint(
       url = url.replace(`{${k}}`, v);
     }
 
-    // Query-String bauen
+    // 2) Query-String bauen
     const qs = endpoint.query
       ? "?" +
-        new URLSearchParams(endpoint.query as Record<string, string>).toString()
+        new URLSearchParams(
+          Object.entries(endpoint.query).reduce<Record<string, string>>(
+            (acc, [key, value]) => {
+              acc[key] = String(value);
+              return acc;
+            },
+            {},
+          ),
+        ).toString()
       : "";
 
-    // Body laden
+    // 3) Body laden (wenn benötigt)
     let data: unknown;
     if (
       ["POST", "PUT", "PATCH"].includes(endpoint.method) &&
@@ -86,7 +93,7 @@ export async function testEndpoint(
       }
     }
 
-    // Header & Auth
+    // 4) Header + Auth
     const baseHeaders = endpoint.headers ?? {};
     const headers: Record<string, string> = {
       ...baseHeaders,
@@ -99,7 +106,7 @@ export async function testEndpoint(
           `Bearer ${Deno.env.get("BEARER_TOKEN")}`,
     };
 
-    // Request ausführen
+    // 5) Request ausführen
     const fullUrl = `${url}${qs}`;
     console.log("▶️ Request für", endpoint.name);
     console.log("   URL:   ", fullUrl);
@@ -112,7 +119,7 @@ export async function testEndpoint(
       validateStatus: () => true,
     });
 
-    // HTTP-Fehler behandeln
+    // 6) HTTP-Fehler behandeln
     if (resp.status < 200 || resp.status >= 300) {
       const msg = `HTTP ${resp.status} (${resp.statusText || "Error"})`;
       console.error(`❌ API-Fehler für ${endpoint.name}:`, msg);
@@ -133,7 +140,7 @@ export async function testEndpoint(
     }
     console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
 
-    // Wenn kein erwartetes Schema, sofort Erfolg zurückgeben
+    // 7) Ohne erwartetes Schema sofort OK
     if (!endpoint.expectedStructure) {
       return {
         endpointName: endpoint.name,
@@ -151,7 +158,7 @@ export async function testEndpoint(
       };
     }
 
-    // Erwartetes Schema finden
+    // 8) Erwartetes Schema finden
     const expectedRelative = endpoint.expectedStructure.replace(
       /^expected\/+/,
       "",
@@ -174,15 +181,16 @@ export async function testEndpoint(
       };
     }
 
-    // Schema-Vergleich
+    // 9) Schema-Vergleich per analyzeResponse
     const key = endpoint.name.replace(/\s+/g, "_");
-    const { missingFields, extraFields, typeMismatches } =
+    const { missingFields, extraFields, typeMismatches, updatedSchema } =
       await analyzeResponse(key, expectedPath, resp.data ?? {});
 
     const hasDiff = missingFields.length > 0 ||
       extraFields.length > 0 ||
       typeMismatches.length > 0;
 
+    // 10) Ergebnis zurückgeben
     return {
       endpointName: endpoint.name,
       method: endpoint.method,
@@ -193,10 +201,9 @@ export async function testEndpoint(
       missingFields,
       extraFields,
       typeMismatches,
-      updatedStructure: null,
+      updatedStructure: updatedSchema,
       expectedFile: expectedPath,
       expectedMissing: false,
-      actualData: resp.data,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -134,8 +134,8 @@ export async function runTestSingle(endpointName: string): Promise<void> {
 
     // 6b) Tatsächliche JSON ausgeben
     console.log("\n--- Tatsächliche JSON (parsed) ---");
-    if (res.actualData !== undefined) {
-      console.log(JSON.stringify(res.actualData, null, 2));
+    if (res.updatedStructure !== undefined && res.updatedStructure !== null) {
+      console.log(JSON.stringify(res.updatedStructure, null, 2));
     } else {
       console.log("⚠️ Keine tatsächliche JSON-Daten verfügbar.");
     }
@@ -143,8 +143,8 @@ export async function runTestSingle(endpointName: string): Promise<void> {
     console.log(
       "\nℹ️ Kein erwartetes Schema definiert – nur tatsächliches JSON:",
     );
-    if (res.actualData !== undefined) {
-      console.log(JSON.stringify(res.actualData, null, 2));
+    if (res.updatedStructure !== undefined && res.updatedStructure !== null) {
+      console.log(JSON.stringify(res.updatedStructure, null, 2));
     } else {
       console.log("⚠️ Keine tatsächliche JSON-Daten verfügbar.");
     }

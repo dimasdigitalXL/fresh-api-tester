@@ -42,7 +42,6 @@ export async function sendSlackReport(
   versionUpdates: VersionUpdate[] = [],
   approver?: string,
 ): Promise<void> {
-  // 1) Alle Ergebnisse mit Schema-Issues sammeln
   const allIssues = testResults.filter((r) =>
     r.expectedMissing ||
     r.missingFields.length > 0 ||
@@ -50,7 +49,6 @@ export async function sendSlackReport(
     r.typeMismatches.length > 0
   );
 
-  // 2) Approval-Status aus KV laden
   const { value: approvalsValue } = await kvInstance.get<
     Record<string, string>
   >(
@@ -58,27 +56,22 @@ export async function sendSlackReport(
   );
   const approvals = approvalsValue ?? {};
 
-  // 3) Nur die mit Status "pending" oder noch nicht gesetzt
   const pendingIssues = allIssues.filter((r) => {
     const key = r.endpointName.replace(/\s+/g, "_");
     return approvals[key] === undefined || approvals[key] === "pending";
   });
 
-  // 4) Header-, Versions- und Statistik-Blöcke vorbereiten
   const headerBlocks = renderHeaderBlock(
     new Date().toLocaleDateString("de-DE"),
   ) as Block[];
 
-  // Wenn ein Approver übergeben wurde, füge Kontext-Block hinzu
   if (approver) {
     headerBlocks.push({
       type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text: `*Freigegeben von:* <!subteam^${approver}>`,
-        },
-      ],
+      elements: [{
+        type: "mrkdwn",
+        text: `*Freigegeben von:* <!subteam^${approver}>`,
+      }],
     });
   }
 
