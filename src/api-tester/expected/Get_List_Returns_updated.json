@@ -1,1 +1,36 @@
-"string"
+{
+  "data": [
+    {
+      "id": "string",
+      "date": "string",
+      "customer": {
+        "id": "string",
+        "number": "string"
+      },
+      "documentNumber": "string",
+      "tags": [],
+      "status": "string",
+      "salesOrder": {
+        "id": "string"
+      },
+      "progress": "string",
+      "shippingMethod": {
+        "id": "string",
+        "name": "string"
+      },
+      "project": {
+        "id": "string",
+        "name": "string"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    }
+  ],
+  "extra": {
+    "totalCount": 0,
+    "page": {
+      "number": 0,
+      "size": 0
+    }
+  }
+}

@@ -1,1 +1,44 @@
-"string"
+{
+  "data": [
+    {
+      "id": "string",
+      "uuid": "string",
+      "number": "string",
+      "deviatingCustomerNumber": "string",
+      "customerType": "string",
+      "name": "string",
+      "firstname": "string",
+      "lastname": "string",
+      "title": "string",
+      "salutation": null,
+      "birthdate": null,
+      "department": "string",
+      "subDepartment": "string",
+      "projects": [
+        {
+          "id": "string"
+        }
+      ],
+      "contactDetails": {
+        "email": "string",
+        "phone": null,
+        "fax": null,
+        "website": null,
+        "additionalData": []
+      },
+      "accountManager": null,
+      "salesManager": {
+        "id": "string"
+      },
+      "isLead": false,
+      "contactPerson": "string"
+    }
+  ],
+  "extra": {
+    "totalCount": 0,
+    "page": {
+      "number": 0,
+      "size": 0
+    }
+  }
+}
