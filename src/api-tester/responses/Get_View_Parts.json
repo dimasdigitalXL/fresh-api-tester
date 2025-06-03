@@ -1,8 +1,9 @@
 {
-  "error": {
-    "code": 7431,
-    "http_code": 404,
-    "message": "Route not found",
-    "href": "https://636a1d639f14e.xentral.biz/api/v1/products/%7Bid%7D/parts/docs.html#error-7431"
+  "data": [],
+  "extra": {
+    "page": {
+      "number": 1,
+      "size": 10
+    }
   }
 }

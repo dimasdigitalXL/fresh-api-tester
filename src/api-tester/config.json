@@ -6,7 +6,7 @@
       "method": "GET",
       "headers": {
         "Accept": "application/json",
-        "Content-Type": "application/json"
+        "Authorization": "Bearer ${BEARER_TOKEN}"
       },
       "query": {
         "filter[0][key]": "customerNumber",
@@ -24,7 +24,7 @@
       "method": "GET",
       "headers": {
         "Accept": "application/json",
-        "Content-Type": "application/json"
+        "Authorization": "Bearer ${BEARER_TOKEN}"
       },
       "query": {},
       "requiresId": true,
@@ -36,7 +36,7 @@
       "method": "GET",
       "headers": {
         "Accept": "application/json",
-        "Content-Type": "application/json"
+        "Authorization": "Bearer ${BEARER_TOKEN}"
       },
       "query": {
         "order[0][field]": "id",

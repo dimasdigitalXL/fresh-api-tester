@@ -1,8 +1,150 @@
 {
-  "error": {
-    "code": 7431,
-    "http_code": 404,
-    "message": "Route not found",
-    "href": "https://636a1d639f14e.xentral.biz/api/v1/purchaseOrders/%7Bid%7D/docs.html#error-7431"
+  "data": {
+    "id": "1",
+    "date": "2023-01-13",
+    "project": {
+      "id": "33"
+    },
+    "status": "created",
+    "documentNumber": "",
+    "supplier": {
+      "id": "20",
+      "number": "70015",
+      "customerNumberAtSupplier": "",
+      "honorific": "",
+      "name": "Paul Kunde",
+      "department": "",
+      "subDepartment": "",
+      "extraAddressLine": "",
+      "street": "Turmweg 23",
+      "zipCode": "79341",
+      "city": "Kenzingen",
+      "state": "",
+      "country": "DE",
+      "contactPerson": "",
+      "email": "",
+      "telephone": "",
+      "telefax": ""
+    },
+    "bodyIntroduction": "",
+    "bodyOutroduction": "",
+    "requestForQuotation": null,
+    "suppliersOfferReference": "",
+    "internalDesignation": "",
+    "language": {
+      "iso2": "DE"
+    },
+    "salesOrderConfirmationReference": "",
+    "isConfirmationRequested": false,
+    "isConfirmed": false,
+    "confirmedVia": "Internet",
+    "financials": {
+      "paymentMethod": {
+        "id": "13"
+      },
+      "total": {
+        "currency": "EUR",
+        "amount": "0.0000"
+      },
+      "paymentTerms": {
+        "paymentTargetDiscount": 0,
+        "paymentTargetDays": 0,
+        "paymentTargetDiscountDays": 0,
+        "paymentTargetDiscountAmount": 0,
+        "isPaymentTargetDiscountApplied": false
+      },
+      "costCenter": "",
+      "tax": {
+        "taxation": "Domestic",
+        "vatId": "",
+        "taxDisplay": "Automatic"
+      }
+    },
+    "delivery": {
+      "deliveryTerms": null,
+      "hasDifferentDeliveryAddress": false,
+      "deliveryAddress": {
+        "honorific": "",
+        "name": "Musterfirma GmbH",
+        "department": "",
+        "subDepartment": "",
+        "extraAddressLine": "",
+        "street": "Eric-Stumpf-Platz 6",
+        "zipCode": "21432",
+        "city": "Münster",
+        "state": "",
+        "country": "DE",
+        "contactPerson": ""
+      },
+      "dates": {
+        "desiredDeliveryDate": null,
+        "confirmedDeliveryDate": null
+      }
+    },
+    "formatting": {
+      "hideLetterHead": false,
+      "hidePrices": false,
+      "hideProductNumbers": false,
+      "showLongProductNumbers": false,
+      "hideProductDescriptions": false,
+      "showOwnProductNumberInColumn": false
+    },
+    "internalComment": "",
+    "liabilitiesInfo": "",
+    "positions": [
+      {
+        "id": "242",
+        "project": {
+          "id": "1"
+        },
+        "product": {
+          "id": "110"
+        },
+        "name": "Karton",
+        "description": "",
+        "quantity": 1000,
+        "delivered": 0,
+        "salesOrderPosition": null,
+        "price": {
+          "amount": "0.25000000",
+          "currency": "EUR"
+        },
+        "tax": {
+          "vatCategory": "standard",
+          "taxText": "",
+          "rate": 19
+        }
+      },
+      {
+        "id": "244",
+        "project": {
+          "id": "1"
+        },
+        "product": {
+          "id": "572"
+        },
+        "name": "Bausatz ohne EK",
+        "description": "",
+        "quantity": 155,
+        "delivered": 0,
+        "salesOrderPosition": null,
+        "price": {
+          "amount": "1.34000000",
+          "currency": "EUR"
+        },
+        "tax": {
+          "vatCategory": "standard",
+          "taxText": "",
+          "rate": 19
+        }
+      }
+    ],
+    "log": {
+      "createdAt": "2023-01-13T12:49:37+01:00",
+      "isSent": false,
+      "sentAt": null,
+      "sentBy": "",
+      "sentVia": ""
+    }
   }
 }

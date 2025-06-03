@@ -1,0 +1,267 @@
+{
+  "data": [
+    {
+      "id": "1",
+      "date": "2023-01-23",
+      "customer": {
+        "id": "8",
+        "number": "10004"
+      },
+      "documentNumber": "500001",
+      "tags": [],
+      "status": "completed",
+      "salesOrder": {
+        "id": "19"
+      },
+      "progress": "done",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "1",
+        "name": "Standard Projekt"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    },
+    {
+      "id": "2",
+      "date": "2023-01-23",
+      "customer": {
+        "id": "8",
+        "number": "10004"
+      },
+      "documentNumber": "500002",
+      "tags": [],
+      "status": "completed",
+      "salesOrder": {
+        "id": "20"
+      },
+      "progress": "done",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "1",
+        "name": "Standard Projekt"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    },
+    {
+      "id": "3",
+      "date": "2023-01-25",
+      "customer": {
+        "id": "8",
+        "number": "10004"
+      },
+      "documentNumber": "500003",
+      "tags": [],
+      "status": "completed",
+      "salesOrder": {
+        "id": "21"
+      },
+      "progress": "done",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "1",
+        "name": "Standard Projekt"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    },
+    {
+      "id": "4",
+      "date": "2023-02-02",
+      "customer": {
+        "id": "7",
+        "number": "10003"
+      },
+      "documentNumber": "500005",
+      "tags": [],
+      "status": "completed",
+      "salesOrder": null,
+      "progress": "done",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "1",
+        "name": "Standard Projekt"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    },
+    {
+      "id": "5",
+      "date": "2023-01-31",
+      "customer": {
+        "id": "8",
+        "number": "10004"
+      },
+      "documentNumber": "500004",
+      "tags": [],
+      "status": "completed",
+      "salesOrder": {
+        "id": "33"
+      },
+      "progress": "done",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "1",
+        "name": "Standard Projekt"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    },
+    {
+      "id": "6",
+      "date": "2023-02-02",
+      "customer": {
+        "id": "8",
+        "number": "10004"
+      },
+      "documentNumber": "500006",
+      "tags": [],
+      "status": "completed",
+      "salesOrder": {
+        "id": "33"
+      },
+      "progress": "done",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "1",
+        "name": "Standard Projekt"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    },
+    {
+      "id": "8",
+      "date": "2024-08-07",
+      "customer": {
+        "id": "4",
+        "number": "100018"
+      },
+      "documentNumber": "DE20245008",
+      "tags": [
+        {
+          "id": "20",
+          "name": "Neues Tag via API",
+          "color": "a9ca45"
+        }
+      ],
+      "status": "released",
+      "salesOrder": {
+        "id": "79"
+      },
+      "progress": "announced",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "5",
+        "name": "Paul"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    },
+    {
+      "id": "9",
+      "date": "2023-02-28",
+      "customer": {
+        "id": "4",
+        "number": "100018"
+      },
+      "documentNumber": "500007",
+      "tags": [],
+      "status": "completed",
+      "salesOrder": {
+        "id": "79"
+      },
+      "progress": "done",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "5",
+        "name": "Paul"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    },
+    {
+      "id": "10",
+      "date": "2025-04-10",
+      "customer": {
+        "id": "2",
+        "number": "10000"
+      },
+      "documentNumber": "2025 - 500046",
+      "tags": [
+        {
+          "id": "20",
+          "name": "Neues Tag via API",
+          "color": "a9ca45"
+        }
+      ],
+      "status": "released",
+      "salesOrder": null,
+      "progress": "announced",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "1",
+        "name": "Standard Projekt"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    },
+    {
+      "id": "11",
+      "date": "2023-04-27",
+      "customer": {
+        "id": "17",
+        "number": "10008"
+      },
+      "documentNumber": "1",
+      "tags": [],
+      "status": "released",
+      "salesOrder": null,
+      "progress": "announced",
+      "shippingMethod": {
+        "id": "1",
+        "name": "DHL"
+      },
+      "project": {
+        "id": "4",
+        "name": "Knut Test"
+      },
+      "bodyOutroduction": null,
+      "internalComment": null
+    }
+  ],
+  "extra": {
+    "totalCount": 83,
+    "page": {
+      "number": 1,
+      "size": 10
+    }
+  }
+}

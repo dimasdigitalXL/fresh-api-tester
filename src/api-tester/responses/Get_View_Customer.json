@@ -1,8 +1,41 @@
 {
-  "error": {
-    "code": 7431,
-    "http_code": 404,
-    "message": "Route not found",
-    "href": "https://636a1d639f14e.xentral.biz/api/v2/customers/%7Bid%7D/docs.html#error-7431"
+  "data": {
+    "id": "440",
+    "uuid": "",
+    "number": "16",
+    "deviatingCustomerNumber": "",
+    "customerType": "person",
+    "name": "DimasTest",
+    "firstname": "",
+    "lastname": "",
+    "title": "",
+    "salutation": "other",
+    "salutationPhrase": "",
+    "birthdate": null,
+    "department": "",
+    "subDepartment": "",
+    "projects": [
+      {
+        "id": "32"
+      }
+    ],
+    "groups": [],
+    "contactDetails": {
+      "email": "",
+      "phone": null,
+      "mobile": null,
+      "fax": null,
+      "website": null,
+      "additionalData": []
+    },
+    "accountManager": null,
+    "salesManager": null,
+    "isLead": false,
+    "contactPerson": ""
+  },
+  "links": {
+    "self": "https://636a1d639f14e.xentral.biz/api/v2/customers/440",
+    "contactPersons": "https://636a1d639f14e.xentral.biz/api/customers/440/contactPerson",
+    "addresses": "https://636a1d639f14e.xentral.biz/api/v2/customers/440/addresses"
   }
 }

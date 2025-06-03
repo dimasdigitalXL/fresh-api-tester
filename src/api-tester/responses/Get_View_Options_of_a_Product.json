@@ -1,8 +1,71 @@
 {
-  "error": {
-    "code": 7431,
-    "http_code": 404,
-    "message": "Route not found",
-    "href": "https://636a1d639f14e.xentral.biz/api/v1/products/%7Bid%7D/options/docs.html#error-7431"
+  "data": [
+    {
+      "id": "1",
+      "name": "Größe",
+      "sort": 0,
+      "createdAt": "2022-11-25T11:52:28+01:00"
+    },
+    {
+      "id": "3",
+      "name": "Farbe",
+      "sort": 0,
+      "createdAt": "2023-01-19T14:34:44+01:00"
+    },
+    {
+      "id": "4",
+      "name": "Größe",
+      "sort": 1,
+      "createdAt": "2023-01-19T14:35:00+01:00"
+    },
+    {
+      "id": "5",
+      "name": "Jahrgang",
+      "sort": 1,
+      "createdAt": "2023-02-06T11:13:53+01:00"
+    },
+    {
+      "id": "6",
+      "name": "Farbe",
+      "sort": 1,
+      "createdAt": "2023-03-03T14:47:20+01:00"
+    },
+    {
+      "id": "7",
+      "name": "Größe",
+      "sort": 2,
+      "createdAt": "2023-03-03T14:48:16+01:00"
+    },
+    {
+      "id": "8",
+      "name": "Farbe",
+      "sort": 1,
+      "createdAt": "2023-03-03T14:58:42+01:00"
+    },
+    {
+      "id": "9",
+      "name": "Größe",
+      "sort": 2,
+      "createdAt": "2023-03-03T14:59:22+01:00"
+    },
+    {
+      "id": "10",
+      "name": "Farbe",
+      "sort": 1,
+      "createdAt": "2023-03-03T15:02:35+01:00"
+    },
+    {
+      "id": "11",
+      "name": "Größe",
+      "sort": 2,
+      "createdAt": "2023-03-03T15:03:08+01:00"
+    }
+  ],
+  "extra": {
+    "totalCount": 83,
+    "page": {
+      "number": 1,
+      "size": 10
+    }
   }
 }

@@ -1,8 +1,94 @@
 {
-  "error": {
-    "code": 7431,
-    "http_code": 404,
-    "message": "Route not found",
-    "href": "https://636a1d639f14e.xentral.biz/api/v1/products/%7Bid%7D/purchasePrices/docs.html#error-7431"
+  "data": [
+    {
+      "id": "113",
+      "amount": 10,
+      "supplier": {
+        "id": "67",
+        "name": "BLANCO GmbH + Co KG"
+      },
+      "price": {
+        "amount": "0.55000000",
+        "currency": "EUR"
+      },
+      "additionalInformation": {
+        "supplierAvailableStock": 0,
+        "supplierAvailableStockDate": "0000-00-00",
+        "safetyStock": 0,
+        "standardDeliveryTime": 0,
+        "standardDeliveryTimeUnit": null,
+        "currentDeliveryTime": 0,
+        "currentDeliveryTimeUnit": null
+      }
+    },
+    {
+      "id": "112",
+      "amount": 1,
+      "supplier": {
+        "id": "67",
+        "name": "BLANCO GmbH + Co KG"
+      },
+      "price": {
+        "amount": "0.88000000",
+        "currency": "EUR"
+      },
+      "additionalInformation": {
+        "supplierAvailableStock": 0,
+        "supplierAvailableStockDate": "0000-00-00",
+        "safetyStock": 0,
+        "standardDeliveryTime": 0,
+        "standardDeliveryTimeUnit": null,
+        "currentDeliveryTime": 0,
+        "currentDeliveryTimeUnit": null
+      }
+    },
+    {
+      "id": "106",
+      "amount": 1,
+      "supplier": {
+        "id": "3",
+        "name": "Schrauben Meier"
+      },
+      "price": {
+        "amount": "15.00000000",
+        "currency": "EUR"
+      },
+      "additionalInformation": {
+        "supplierAvailableStock": 0,
+        "supplierAvailableStockDate": "0000-00-00",
+        "safetyStock": 0,
+        "standardDeliveryTime": 0,
+        "standardDeliveryTimeUnit": null,
+        "currentDeliveryTime": 0,
+        "currentDeliveryTimeUnit": null
+      }
+    },
+    {
+      "id": "151",
+      "amount": 1,
+      "supplier": {
+        "id": "3",
+        "name": "Schrauben Meier"
+      },
+      "price": {
+        "amount": "12.99000000",
+        "currency": "EUR"
+      },
+      "additionalInformation": {
+        "supplierAvailableStock": 0,
+        "supplierAvailableStockDate": "0000-00-00",
+        "safetyStock": 0,
+        "standardDeliveryTime": 0,
+        "standardDeliveryTimeUnit": null,
+        "currentDeliveryTime": 0,
+        "currentDeliveryTimeUnit": null
+      }
+    }
+  ],
+  "extra": {
+    "page": {
+      "number": 1,
+      "size": 10
+    }
   }
 }
