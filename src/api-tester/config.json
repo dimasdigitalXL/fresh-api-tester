@@ -20,7 +20,7 @@
     },
     {
       "name": "Get View Sales Order",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/salesOrders/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/salesOrders/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -49,7 +49,7 @@
     },
     {
       "name": "Get View Product",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -60,7 +60,7 @@
     },
     {
       "name": "Delete Product",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/${id}",
       "method": "DELETE",
       "headers": {
         "Accept": "application/json",
@@ -81,7 +81,7 @@
     },
     {
       "name": "Get View Invoice",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/invoices/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/invoices/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -105,7 +105,7 @@
     },
     {
       "name": "Get View Customer",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v2/customers/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v2/customers/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -118,7 +118,7 @@
     },
     {
       "name": "Get View Delivery Note",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/deliveryNotes/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/deliveryNotes/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -130,7 +130,7 @@
     },
     {
       "name": "Get View Purchase Order",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/purchaseOrders/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/purchaseOrders/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -164,7 +164,7 @@
     },
     {
       "name": "Get View Credit Note",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/creditNotes/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/creditNotes/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -176,7 +176,7 @@
     },
     {
       "name": "Get View Liability",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/liabilities/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/liabilities/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -188,7 +188,7 @@
     },
     {
       "name": "Get View Suppliers",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/suppliers/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/suppliers/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -200,7 +200,7 @@
     },
     {
       "name": "Get View Return",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/returns/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/returns/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -223,7 +223,7 @@
     },
     {
       "name": "Get View Options of a Product",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/options",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/${id}/options",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -235,7 +235,7 @@
     },
     {
       "name": "Get View Media",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/media",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/${id}/media",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -247,7 +247,7 @@
     },
     {
       "name": "Get View Purchase Prices",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/purchasePrices",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/${id}/purchasePrices",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -259,7 +259,7 @@
     },
     {
       "name": "Get View Sales Prices",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/salesPrices",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/${id}/salesPrices",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -271,7 +271,7 @@
     },
     {
       "name": "Get View Parts",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/{id}/parts",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v1/products/${id}/parts",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
@@ -283,7 +283,7 @@
     },
     {
       "name": "Get View Address",
-      "url": "https://${XENTRAL_ID}.xentral.biz/api/v2/customers/{customerId}/addresses/{id}",
+      "url": "https://${XENTRAL_ID}.xentral.biz/api/v2/customers/${customerId}/addresses/${id}",
       "method": "GET",
       "headers": {
         "Accept": "application/json",
