@@ -13,12 +13,9 @@
  */
 import "https://deno.land/std@0.216.0/dotenv/load.ts";
 import { loadConfig } from "./src/api-tester/core/configLoader.ts";
-import {
-  runSingleEndpoint,
-  VersionUpdate,
-} from "./src/api-tester/core/endpointRunner.ts";
+import { runSingleEndpoint } from "./src/api-tester/core/endpointRunner.ts";
 import type { SchemaUpdate } from "./src/api-tester/core/gitPush.ts";
-import type { TestResult } from "./src/api-tester/core/apiCaller.ts";
+import type { TestResult, VersionUpdate } from "./src/api-tester/core/types.ts";
 import { sendSlackReport } from "./src/api-tester/core/slack/slackReporter/sendSlackReport.ts";
 import { kvInstance } from "./src/api-tester/core/kv.ts";
 

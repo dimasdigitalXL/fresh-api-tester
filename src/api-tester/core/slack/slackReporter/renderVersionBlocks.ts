@@ -1,7 +1,7 @@
 // src/api-tester/core/slack/slackReporter/renderVersionBlocks.ts
 
 import type { Block } from "./renderHeaderBlock.ts";
-import type { VersionUpdate } from "../../endpointRunner.ts";
+import type { VersionUpdate } from "../../types.ts";
 
 /**
  * Rendert einen Abschnitt für jede erkannte neue API-Version.

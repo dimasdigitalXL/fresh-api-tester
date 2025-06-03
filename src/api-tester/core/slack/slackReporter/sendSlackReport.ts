@@ -1,5 +1,3 @@
-// src/api-tester/core/slack/sendSlackReport.ts
-
 import axios from "https://esm.sh/axios@1.4.0";
 import { kvInstance } from "../../kv.ts";
 import { getSlackWorkspaces } from "../slackWorkspaces.ts";
@@ -7,14 +5,10 @@ import type { Block } from "./renderHeaderBlock.ts";
 import { renderHeaderBlock } from "./renderHeaderBlock.ts";
 import { renderVersionBlocks } from "./renderVersionBlocks.ts";
 import { renderStatsBlock } from "./renderStatsBlock.ts";
-import type { TestResult } from "../../apiCaller.ts";
-import type { VersionUpdate } from "../../endpointRunner.ts";
+import type { TestResult, VersionUpdate } from "../../types.ts";
 
 const MAX_BLOCKS_PER_MESSAGE = 50;
 
-/**
- * Liefert für jede Ziffer von n das entsprechende Keycap-Emoji.
- */
 function numberEmoji(n: number): string {
   const digitMap: Record<string, string> = {
     "0": "0️⃣",
@@ -35,7 +29,6 @@ function numberEmoji(n: number): string {
     .join("");
 }
 
-/** Teilt ein Array in Chunks der Länge `size` */
 function chunkArray<T>(array: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < array.length; i += size) {
@@ -44,13 +37,6 @@ function chunkArray<T>(array: T[], size: number): T[][] {
   return chunks;
 }
 
-/**
- * Sendet den Slack-Testbericht. Wenn `approver` gesetzt ist, wird
- * ein zusätzlicher Hinweisblock ("Freigegeben von @user") eingefügt.
- *
- * Dabei speichern wir für jeden Issue-Block gleichzeitig den Slack‐Timestamp (ts) in KV,
- * damit wir später über `chat.update` genau wissen, welche Nachricht wir updaten müssen.
- */
 export async function sendSlackReport(
   testResults: TestResult[],
   versionUpdates: VersionUpdate[] = [],
@@ -108,7 +94,6 @@ export async function sendSlackReport(
     allIssues.length,
   ) as Block[];
 
-  // → Keine offenen Issues? Dann Nur-Statistik senden
   if (pendingIssues.length === 0) {
     for (const { token, channel } of getSlackWorkspaces()) {
       const blocks: Block[] = [
@@ -131,10 +116,7 @@ export async function sendSlackReport(
     return;
   }
 
-  // 5) Für jede offene Issue bauen wir Slack-Blöcke und posten sie einzeln mit 'chat.postMessage'.
-  //    Wir merken uns das zurückgelieferte `ts` pro Schlüssel (key), damit wir später ein `chat.update` auf genau diese Nachricht machen können.
   for (const { token, channel } of getSlackWorkspaces()) {
-    // Wir schicken alles in nur einem Post, aber speichern dennoch pro Issue den ts
     const allBodyBlocks: Block[] = [];
     const rawBlocksMap = new Map<string, Block[]>();
 
@@ -142,7 +124,6 @@ export async function sendSlackReport(
       const key = r.endpointName.replace(/\s+/g, "_");
       const blocks: Block[] = [];
 
-      // A) Section mit durchnummeriertem Emoji
       const icon = r.expectedMissing || r.missingFields.length > 0
         ? "🔴"
         : (r.extraFields.length > 0 || r.typeMismatches.length > 0)
@@ -157,7 +138,6 @@ export async function sendSlackReport(
         },
       });
 
-      // B) Kontext-Details
       if (r.expectedMissing) {
         blocks.push({
           type: "context",
@@ -209,7 +189,6 @@ export async function sendSlackReport(
         }
       }
 
-      // C) Divider + Action-Buttons (mit echtem `ts` im Payload) + Divider
       blocks.push({ type: "divider" });
       blocks.push({
         type: "actions",
@@ -226,7 +205,6 @@ export async function sendSlackReport(
               missing: r.missingFields,
               extra: r.extraFields,
               typeMismatches: r.typeMismatches,
-              // Die ts setzen wir erst, sobald wir hier tatsächlich posten
             }),
           },
           {
@@ -244,7 +222,6 @@ export async function sendSlackReport(
       rawBlocksMap.set(key, blocks);
     });
 
-    // 6) Pagination: Wir schaﬀen Seiten von Blöcken, damit Slack nicht die 50‐Block‐Grenze überschreitet
     const headerCount = headerBlocks.length + versionBlocks.length;
     const footerCount = statsBlocks.length;
     const maxPerPage = Math.max(
@@ -253,7 +230,6 @@ export async function sendSlackReport(
     );
     const pages = chunkArray(allBodyBlocks, maxPerPage);
 
-    // 7) Pro Seite → eine `chat.postMessage` ausführen und das `ts` abspeichern
     for (let i = 0; i < pages.length; i++) {
       const blocks: Block[] = [
         ...(i === 0 ? headerBlocks : []),
@@ -262,7 +238,6 @@ export async function sendSlackReport(
         ...(i === pages.length - 1 ? statsBlocks : []),
       ];
 
-      // 7a) Nachricht senden
       const resp = await axios.post("https://slack.com/api/chat.postMessage", {
         channel,
         text: `API Testbericht – Seite ${i + 1}/${pages.length}`,
@@ -277,10 +252,7 @@ export async function sendSlackReport(
       const postedTs = resp.data.ts as string;
       console.log(`▶️ Beitrag gesendet, ts=${postedTs}`);
 
-      // 7b) Speichere für jedes Issue desselben Blocks den `ts` unter rawBlocks:<key>
-      //     → rawBlocksMap hat für jeden `key` genau die Blöcke, aber wir tragen den gemeinsam geposteten `ts` mit ein.
       for (const [key, blks] of rawBlocksMap) {
-        // Speichern eines Objektes { blocks, ts } statt nur blocks
         await kvInstance.set(["rawBlocks", key], {
           blocks: blks,
           ts: postedTs,

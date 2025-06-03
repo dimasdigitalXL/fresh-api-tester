@@ -1,186 +1,218 @@
 // src/api-tester/core/apiCaller.ts
 
+import axios from "https://esm.sh/axios@1.4.0";
+import { existsSync } from "https://deno.land/std@0.216.0/fs/mod.ts";
 import { join } from "https://deno.land/std@0.216.0/path/mod.ts";
-import type { EndpointConfig } from "./configLoader.ts";
+import { resolveProjectPath } from "./utils.ts";
 import { analyzeResponse } from "./structureAnalyzer.ts";
 import type { Schema } from "./types.ts";
-import { safeReplace } from "./utils.ts";
 
-/**
- * Ergebnis eines API-Tests inklusive Schema-Abgleich.
- */
+export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+export interface Endpoint {
+  name: string;
+  url: string;
+  method: Method;
+  expectedStructure?: string;
+  query?: Record<string, string | number>;
+  bodyFile?: string;
+  headers?: Record<string, string>;
+}
+
 export interface TestResult {
   endpointName: string;
-  method: string;
-  url: string;
-  status: number;
-  body: unknown;
-
-  expectedMissing: boolean;
-  expectedFile?: string;
-
+  method: Method;
+  success: boolean;
+  isCritical: boolean;
+  status: number | null;
+  errorMessage: string | null;
   missingFields: string[];
   extraFields: string[];
-  typeMismatches: { path: string; expected: string; actual: string }[];
-
-  /** Transformiertes Schema (für Versionierung) */
-  actualData?: Schema;
+  typeMismatches: Array<{ path: string; expected: string; actual: string }>;
+  updatedStructure: string | null;
+  expectedFile?: string;
+  expectedMissing?: boolean;
+  /** Neu: tatsächliche Antwortdaten für Schema-Updates */
+  actualData?: Schema | string;
 }
 
-async function findExpectedFile(key: string): Promise<string> {
-  const expectedDir = join(Deno.cwd(), "src", "api-tester", "expected");
-  for await (const entry of Deno.readDir(expectedDir)) {
-    if (!entry.isFile) continue;
-    if (entry.name.startsWith(key) && entry.name.endsWith(".json")) {
-      return join(expectedDir, entry.name);
+function findExpectedPath(relativePath: string): string | null {
+  const projectRoot = Deno.cwd();
+  const candidates = [
+    join(projectRoot, "src", "expected", relativePath),
+    join(projectRoot, "src", "api-tester", "expected", relativePath),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      console.log(`🔍 Erwartetes Schema gefunden: ${p}`);
+      return p;
     }
   }
-  throw new Error(`Schema nicht gefunden: ${key}`);
-}
-
-function buildUrl(template: string, params: Record<string, string>): string {
-  return template.replace(/\$\{(\w+)\}/g, (_match, key) => {
-    const val = params[key];
-    if (val === undefined) {
-      throw new Error(`Kein Wert für URL-Parameter "${key}"`);
-    }
-    return encodeURIComponent(val);
-  });
-}
-
-/**
- * Ersetzt Header-Platzhalter ${KEY} durch Umgebungsvariablenwerte.
- */
-function replaceHeaderPlaceholders(
-  headers: Record<string, string> | undefined,
-): Record<string, string> {
-  if (!headers) return {};
-  const envVars = Deno.env.toObject();
-  const replaced: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    replaced[key] = safeReplace(value, envVars);
-    if (replaced[key] === "") {
-      console.warn(
-        `⚠️ Umgebungsvariable für Header "${key}" wurde nicht gefunden`,
-      );
-    }
-  }
-  return replaced;
+  console.warn(
+    `⚠️ Erwartetes Schema nicht gefunden in:\n  ${candidates.join("\n  ")}`,
+  );
+  return null;
 }
 
 export async function testEndpoint(
-  ep: EndpointConfig,
-  dynamicParamsOverride: Record<string, string> = {},
+  endpoint: Endpoint,
+  dynamicParams: Record<string, string> = {},
 ): Promise<TestResult> {
-  const key = ep.name.replace(/\s+/g, "_");
-  console.debug(`[DEBUG] Starte testEndpoint für "${ep.name}" (key="${key}")`);
-
-  let url: string;
   try {
-    url = buildUrl(ep.url, dynamicParamsOverride);
-    console.debug(`[DEBUG]  → finale URL: ${url}`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Ungültige URL für "${ep.name}": ${msg}`);
-  }
-
-  if (ep.query && Object.keys(ep.query).length > 0) {
-    const qs = new URLSearchParams();
-    for (const [k, v] of Object.entries(ep.query)) {
-      qs.append(k, String(v));
-    }
-    url += url.includes("?") ? `&${qs}` : `?${qs}`;
-    console.debug(`[DEBUG]  → mit Query-Params: ${url}`);
-  }
-
-  const replacedHeaders = replaceHeaderPlaceholders(ep.headers);
-  console.debug("🔑 Finaler Header vor Request:", replacedHeaders);
-
-  const init: RequestInit & { body?: string } = {
-    method: ep.method,
-    headers: replacedHeaders,
-  };
-
-  if (ep.bodyFile) {
-    try {
-      init.body = await Deno.readTextFile(join(Deno.cwd(), ep.bodyFile));
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `⚠️ bodyFile "${ep.bodyFile}" für "${ep.name}" nicht geladen: ${msg}`,
-      );
-    }
-  }
-
-  const result: TestResult = {
-    endpointName: ep.name,
-    method: ep.method,
-    url,
-    status: 0,
-    body: undefined,
-    expectedMissing: false,
-    missingFields: [],
-    extraFields: [],
-    typeMismatches: [],
-  };
-
-  console.debug(`[DEBUG]  → sende Request...`);
-  let resp: Response;
-  try {
-    resp = await fetch(url, init);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Request für "${ep.name}" fehlgeschlagen: ${msg}`);
-  }
-  result.status = resp.status;
-
-  const rawText = await resp.text();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawText);
-    console.debug(`[DEBUG]  ← JSON geparst`);
-  } catch {
-    parsed = rawText;
-    console.debug(`[DEBUG]  ← roher Text`);
-  }
-  result.body = parsed;
-
-  try {
-    const fsPath = ep.expectedStructure
-      ? join(Deno.cwd(), "src", "api-tester", ep.expectedStructure)
-      : await findExpectedFile(key);
-    console.debug(`[DEBUG]  → verwende Schema-Datei: ${fsPath}`);
-
-    const diff = await analyzeResponse(key, fsPath, parsed);
-    result.missingFields = diff.missingFields;
-    result.extraFields = diff.extraFields;
-    result.typeMismatches = diff.typeMismatches;
-    result.actualData = diff.updatedSchema;
-    result.expectedFile = ep.expectedStructure ?? fsPath.split("/").pop()!;
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn(
-      `⚠️ Schema-Vergleich für "${ep.name}" fehlgeschlagen: ${msg}`,
+    // URL-Platzhalter ersetzen
+    let url = endpoint.url.replace(
+      "${XENTRAL_ID}",
+      Deno.env.get("XENTRAL_ID") ?? "",
     );
-    result.expectedMissing = true;
-  }
-
-  if (Deno.env.get("LOCAL_MODE") === "true") {
-    const outDir = join(Deno.cwd(), "src", "api-tester", "responses");
-    try {
-      await Deno.mkdir(outDir, { recursive: true });
-      const txt = typeof parsed === "string"
-        ? parsed
-        : JSON.stringify(parsed, null, 2);
-      await Deno.writeTextFile(join(outDir, `${key}.json`), txt);
-      console.log(`📝 [LOCAL] Response für "${ep.name}" gespeichert`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `⚠️ Konnten lokale Response für "${ep.name}" nicht speichern: ${msg}`,
-      );
+    for (const [k, v] of Object.entries(dynamicParams)) {
+      url = url.replace(`{${k}}`, v);
     }
-  }
 
-  return result;
+    // Query-String bauen
+    const qs = endpoint.query
+      ? "?" +
+        new URLSearchParams(endpoint.query as Record<string, string>).toString()
+      : "";
+
+    // Body laden
+    let data: unknown;
+    if (
+      ["POST", "PUT", "PATCH"].includes(endpoint.method) &&
+      endpoint.bodyFile
+    ) {
+      const bf = resolveProjectPath(endpoint.bodyFile);
+      if (existsSync(bf)) {
+        data = JSON.parse(await Deno.readTextFile(bf));
+      }
+    }
+
+    // Header & Auth
+    const baseHeaders = endpoint.headers ?? {};
+    const headers: Record<string, string> = {
+      ...baseHeaders,
+      Authorization: baseHeaders.Authorization?.includes("${BEARER_TOKEN}")
+        ? baseHeaders.Authorization.replace(
+          "${BEARER_TOKEN}",
+          Deno.env.get("BEARER_TOKEN") ?? "",
+        )
+        : baseHeaders.Authorization ??
+          `Bearer ${Deno.env.get("BEARER_TOKEN")}`,
+    };
+
+    // Request ausführen
+    const fullUrl = `${url}${qs}`;
+    console.log("▶️ Request für", endpoint.name);
+    console.log("   URL:   ", fullUrl);
+    console.log("   Header:", JSON.stringify(headers));
+    const resp = await axios.request({
+      url: fullUrl,
+      method: endpoint.method,
+      data,
+      headers,
+      validateStatus: () => true,
+    });
+
+    // HTTP-Fehler behandeln
+    if (resp.status < 200 || resp.status >= 300) {
+      const msg = `HTTP ${resp.status} (${resp.statusText || "Error"})`;
+      console.error(`❌ API-Fehler für ${endpoint.name}:`, msg);
+      return {
+        endpointName: endpoint.name,
+        method: endpoint.method,
+        success: false,
+        isCritical: true,
+        status: resp.status,
+        errorMessage: null,
+        missingFields: [],
+        extraFields: [],
+        typeMismatches: [],
+        updatedStructure: null,
+        expectedFile: endpoint.expectedStructure,
+        expectedMissing: false,
+      };
+    }
+    console.log(`✅ Antwort für ${endpoint.name}: Status ${resp.status}`);
+
+    // Wenn kein erwartetes Schema, sofort Erfolg zurückgeben
+    if (!endpoint.expectedStructure) {
+      return {
+        endpointName: endpoint.name,
+        method: endpoint.method,
+        success: true,
+        isCritical: false,
+        status: resp.status,
+        errorMessage: null,
+        missingFields: [],
+        extraFields: [],
+        typeMismatches: [],
+        updatedStructure: null,
+        expectedFile: endpoint.expectedStructure,
+        expectedMissing: false,
+      };
+    }
+
+    // Erwartetes Schema finden
+    const expectedRelative = endpoint.expectedStructure.replace(
+      /^expected\/+/,
+      "",
+    );
+    const expectedPath = findExpectedPath(expectedRelative);
+    if (!expectedPath) {
+      return {
+        endpointName: endpoint.name,
+        method: endpoint.method,
+        success: false,
+        isCritical: false,
+        status: resp.status,
+        errorMessage: null,
+        missingFields: [],
+        extraFields: [],
+        typeMismatches: [],
+        updatedStructure: null,
+        expectedFile: endpoint.expectedStructure,
+        expectedMissing: true,
+      };
+    }
+
+    // Schema-Vergleich
+    const key = endpoint.name.replace(/\s+/g, "_");
+    const { missingFields, extraFields, typeMismatches } =
+      await analyzeResponse(key, expectedPath, resp.data ?? {});
+
+    const hasDiff = missingFields.length > 0 ||
+      extraFields.length > 0 ||
+      typeMismatches.length > 0;
+
+    return {
+      endpointName: endpoint.name,
+      method: endpoint.method,
+      success: !hasDiff,
+      isCritical: hasDiff,
+      status: resp.status,
+      errorMessage: null,
+      missingFields,
+      extraFields,
+      typeMismatches,
+      updatedStructure: null,
+      expectedFile: expectedPath,
+      expectedMissing: false,
+      actualData: resp.data,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`❌ Exception in ${endpoint.name}:`, msg);
+    return {
+      endpointName: endpoint.name,
+      method: endpoint.method,
+      success: false,
+      isCritical: true,
+      status: null,
+      errorMessage: msg,
+      missingFields: [],
+      extraFields: [],
+      typeMismatches: [],
+      updatedStructure: null,
+      expectedMissing: false,
+    };
+  }
 }

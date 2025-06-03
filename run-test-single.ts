@@ -1,5 +1,3 @@
-#!/usr/bin/env -S deno run --unstable --allow-read --allow-net --allow-env
-
 // run-test-single.ts
 
 import "https://deno.land/std@0.216.0/dotenv/load.ts";

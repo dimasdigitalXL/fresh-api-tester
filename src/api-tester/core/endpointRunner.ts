@@ -3,7 +3,7 @@
 import { expandGlob } from "https://deno.land/std@0.216.0/fs/mod.ts";
 import { basename, join } from "https://deno.land/std@0.216.0/path/mod.ts";
 import type { EndpointConfig } from "./configLoader.ts";
-import type { RepoInfo, SchemaUpdate } from "./gitPush.ts";
+import type { RepoInfo, SchemaUpdate } from "./types.ts";
 import { resolveProjectPath } from "./utils.ts";
 import defaultIdsRaw from "../default-ids.json" with { type: "json" };
 import { checkAndUpdateApiVersion } from "./versionChecker.ts";
@@ -129,7 +129,13 @@ export async function runSingleEndpoint(
     }
     const nextName = `${key}_v${maxV + 1}.json`;
     const fsPath = join(expectedDir, nextName);
-    schemaUpdates.push({ key, fsPath, newSchema: result.actualData });
+
+    // Falls actualData ein String ist, in Objekt konvertieren
+    const newSchemaObj = typeof result.actualData === "string"
+      ? JSON.parse(result.actualData)
+      : result.actualData;
+
+    schemaUpdates.push({ key, fsPath, newSchema: newSchemaObj });
     console.debug(`🔖 Neuer Schema-Entwurf für "${key}" angelegt: ${nextName}`);
   }
 
