@@ -32,3 +32,5 @@ jobs:
           project: "digitalxl-fresh-api-tester"
           entrypoint: "main.ts"
           root: "."
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
