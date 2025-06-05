@@ -23,6 +23,9 @@ node_modules/
 logs/
 *.log
 
+# lokale expected Dateien
+src/expected/
+
 # Pending-Approvals (enthält sensible Freigabe-Daten)
 pending-approvals.json
 

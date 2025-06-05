@@ -1,0 +1,26 @@
+{
+  "data": [
+    {
+      "id": "string",
+      "customer": null,
+      "customerGroup": {
+        "id": "string",
+        "name": "string",
+        "reference": "string"
+      },
+      "validFrom": null,
+      "expiresAt": null,
+      "amount": 0,
+      "price": {
+        "amount": "string",
+        "currency": "string"
+      }
+    }
+  ],
+  "extra": {
+    "page": {
+      "number": 0,
+      "size": 0
+    }
+  }
+}
