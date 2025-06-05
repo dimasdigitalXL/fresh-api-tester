@@ -49,11 +49,16 @@
     "gln": "string",
     "taxation": 0,
     "tags": [],
+    "salesOrder": {
+      "id": "string",
+      "documentNumber": "string"
+    },
     "positions": [
       {
         "id": 0,
         "position": 0,
         "saleOrderPositionId": 0,
+        "salesOrderId": "string",
         "createdAt": "string",
         "productId": 0,
         "productNumber": "string",

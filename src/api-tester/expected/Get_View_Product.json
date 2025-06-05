@@ -123,6 +123,31 @@
     "unit": {
       "name": "string"
     },
-    "updatedAt": "string"
+    "updatedAt": "string",
+    "textsAndDescriptions": {
+      "inCatalog": false,
+      "primaryLanguage": {
+        "name": "string",
+        "shortDescription": "string",
+        "description": "string",
+        "shopDescription": "string",
+        "metaTitle": "string",
+        "metaDescription": "string",
+        "metaKeywords": "string",
+        "catalogName": null,
+        "catalogText": null
+      },
+      "english": {
+        "name": "string",
+        "shortDescription": null,
+        "description": "string",
+        "shopDescription": "string",
+        "metaTitle": "string",
+        "metaDescription": "string",
+        "metaKeywords": "string",
+        "catalogName": null,
+        "catalogText": null
+      }
+    }
   }
 }
