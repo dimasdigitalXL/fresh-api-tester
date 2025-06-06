@@ -6,8 +6,8 @@ import { runAllTests } from "./run-tests.ts";
 
 // ─── 2) Cron-Job auf Top-Level (muss VOR allen anderen Imports stehen!) ────────────
 Deno.cron(
-  "run-tests-every-hour",
-  "0 * * * *",
+  "run-tests-every-24hours",
+  "0 12 * * *",
   async () => {
     console.log("⏰ [Cron] Starte API-Tests…");
     try {

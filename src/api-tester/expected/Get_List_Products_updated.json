@@ -11,10 +11,11 @@
         "id": "string",
         "name": "string"
       },
-      "category": null,
-      "standardSupplier": {
-        "id": "string"
+      "category": {
+        "id": "string",
+        "name": "string"
       },
+      "standardSupplier": null,
       "stockCount": 0,
       "stockStats": {
         "purchasedCount": "string",
@@ -48,8 +49,8 @@
       "variants": [],
       "isVariant": false,
       "variantOf": null,
-      "thumbnailUrl": "string",
-      "thumbnailId": "string",
+      "thumbnailUrl": null,
+      "thumbnailId": null,
       "tags": [],
       "freeFields": [],
       "countryOfOrigin": null,
