@@ -5,6 +5,8 @@
 import * as $_404 from "./routes/_404.tsx";
 import * as $_app from "./routes/_app.tsx";
 import * as $api_cron_log from "./routes/api/cron-log.ts";
+import * as $api_get_route_details from "./routes/api/get-route-details.ts";
+import * as $api_get_routes from "./routes/api/get-routes.ts";
 import * as $api_kv_dump from "./routes/api/kv-dump.ts";
 import * as $api_reset_approvals from "./routes/api/reset-approvals.ts";
 import * as $api_reset_expected from "./routes/api/reset-expected.ts";
@@ -17,6 +19,8 @@ import * as $index from "./routes/index.tsx";
 import * as $Counter from "./islands/Counter.tsx";
 import * as $LastRunIsland from "./islands/LastRunIsland.tsx";
 import * as $LogIsland from "./islands/LogIsland.tsx";
+import * as $RoutesIsland from "./islands/RoutesIsland.tsx";
+import * as $SlackDebugEventsIsland from "./islands/SlackDebugEventsIsland.tsx";
 import type { Manifest } from "$fresh/server.ts";
 
 const manifest = {
@@ -24,6 +28,8 @@ const manifest = {
     "./routes/_404.tsx": $_404,
     "./routes/_app.tsx": $_app,
     "./routes/api/cron-log.ts": $api_cron_log,
+    "./routes/api/get-route-details.ts": $api_get_route_details,
+    "./routes/api/get-routes.ts": $api_get_routes,
     "./routes/api/kv-dump.ts": $api_kv_dump,
     "./routes/api/reset-approvals.ts": $api_reset_approvals,
     "./routes/api/reset-expected.ts": $api_reset_expected,
@@ -38,6 +44,8 @@ const manifest = {
     "./islands/Counter.tsx": $Counter,
     "./islands/LastRunIsland.tsx": $LastRunIsland,
     "./islands/LogIsland.tsx": $LogIsland,
+    "./islands/RoutesIsland.tsx": $RoutesIsland,
+    "./islands/SlackDebugEventsIsland.tsx": $SlackDebugEventsIsland,
   },
   baseUrl: import.meta.url,
 } satisfies Manifest;

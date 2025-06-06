@@ -1,22 +1,22 @@
 {
   "data": {
-    "id": "440",
+    "id": "string",
     "uuid": "",
-    "number": "16",
+    "number": "string",
     "deviatingCustomerNumber": "",
-    "customerType": "person",
-    "name": "DimasTest",
+    "customerType": "string",
+    "name": "string",
     "firstname": "",
     "lastname": "",
     "title": "",
-    "salutation": "other",
+    "salutation": "string",
     "salutationPhrase": "",
     "birthdate": null,
     "department": "",
     "subDepartment": "",
     "projects": [
       {
-        "id": "32"
+        "id": "string"
       }
     ],
     "groups": [],

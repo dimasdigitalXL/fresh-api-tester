@@ -11,11 +11,10 @@
         "id": "string",
         "name": "string"
       },
-      "category": {
-        "id": "string",
-        "name": "string"
+      "category": null,
+      "standardSupplier": {
+        "id": "string"
       },
-      "standardSupplier": null,
       "stockCount": 0,
       "stockStats": {
         "purchasedCount": "string",
@@ -39,7 +38,7 @@
         "currency": "string",
         "amount": "string"
       },
-      "shopPriceDisplay": null,
+      "shopPriceDisplay": "string",
       "ean": "string",
       "manufacturerName": "string",
       "manufacturerNumber": "string",
@@ -49,8 +48,8 @@
       "variants": [],
       "isVariant": false,
       "variantOf": null,
-      "thumbnailUrl": null,
-      "thumbnailId": null,
+      "thumbnailUrl": "string",
+      "thumbnailId": "string",
       "tags": [],
       "freeFields": [],
       "countryOfOrigin": null,
@@ -93,7 +92,7 @@
       "disabledReason": "string",
       "hidePriceOnDocuments": false,
       "ageRating": null,
-      "isStockItem": false,
+      "isStockItem": true,
       "isStockTakingDisabled": false,
       "hideJustInTimeItemsOnDocuments": false,
       "isShippingCostsProduct": false,
