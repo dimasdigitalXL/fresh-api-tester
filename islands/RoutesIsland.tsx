@@ -1,70 +1,122 @@
 /** @jsxImportSource preact */
 /** islands/RoutesIsland.tsx */
-import { useEffect, useState } from "preact/hooks"; // Wir brauchen useState und useEffect
+import { useEffect } from "preact/hooks";
+import { useSignal } from "@preact/signals";
+
+interface RouteDetails {
+  name: string;
+  status: "OK" | "ERROR";
+  statusCode: number;
+  durationMs: number;
+  data: Record<string, unknown>;
+}
 
 export function RoutesIsland() {
-  // Zustände für Routen, ausgewählte Route und Fehlernachricht
-  const [routes, setRoutes] = useState<string[]>([]); // Speichert die Routen als Array
-  const [selectedRoute, setSelectedRoute] = useState<string | null>(null); // Speichert die ausgewählte Route
-  const [error, setError] = useState<string | null>(null); // Speichert Fehlernachrichten, falls das Abrufen der Routen fehlschlägt
-  const [loading, setLoading] = useState<boolean>(true); // Zustandsvariable für Ladeanzeige
+  const routes = useSignal<string[]>([]);
+  const selectedRoute = useSignal<string | null>(null);
+  const details = useSignal<RouteDetails | null>(null);
+  const error = useSignal<string | null>(null);
+  const loading = useSignal(true);
+  const loadingDetails = useSignal(false);
+  const resetMessage = useSignal<string>("");
 
-  // useEffect wird beim Laden der Komponente ausgeführt, um die Routen von der API zu laden
   useEffect(() => {
-    // Hier holen wir uns die Routen von der API
-    fetch("/api/routes") // URL zum Abrufen der Routen
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Fehler beim Laden der Routen");
-        }
-        return response.json(); // Antwort als JSON parsen
+    fetch("/api/get-routes")
+      .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+      .then((d: { routes: string[] }) => {
+        routes.value = d.routes.filter((r) =>
+          r !== "/api/run-tests" &&
+          r !== "/api/get-config-endpoints"
+        );
       })
-      .then((data) => {
-        setRoutes(data.routes || []); // Routen im State speichern
-        setLoading(false); // Ladeanzeige deaktivieren
+      .catch(() => {
+        error.value = "Fehler beim Laden der Routen.";
       })
-      .catch((err) => {
-        setError("Fehler beim Laden der Routen."); // Fehlerbehandlung
-        setLoading(false); // Ladeanzeige deaktivieren
-        console.error("Fehler beim Laden der Routen:", err);
+      .finally(() => {
+        loading.value = false;
       });
-  }, []); // Diese Effektfunktion wird nur einmal beim Laden der Komponente ausgeführt
+  }, []);
 
-  // Funktion, um den aktuellen Status der Route anzuzeigen
-  const handleRoute = (routeName: string) => {
-    setSelectedRoute(routeName); // Setzt die ausgewählte Route im State
-    // Hier könnte man zusätzliche Logik für die Route implementieren, z.B. Details zu dieser Route laden
+  const handleRoute = (route: string) => {
+    selectedRoute.value = route;
+    details.value = null;
+    error.value = null;
+    resetMessage.value = "";
+    loadingDetails.value = true;
+
+    fetch(`/api/get-route-details?name=${encodeURIComponent(route)}`)
+      .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+      .then((d: RouteDetails) => {
+        details.value = d;
+        if (route.startsWith("/api/reset-")) {
+          resetMessage.value = `✅ Alle ${
+            route.replace("/api/reset-", "")
+          } in KV zurückgesetzt.`;
+        }
+      })
+      .catch(() => {
+        error.value = "Fehler beim Laden der Details.";
+      })
+      .finally(() => {
+        loadingDetails.value = false;
+      });
   };
 
   return (
-    <div>
-      <h2>Verfügbare Routen</h2>
+    <div class="flex flex-col items-center w-full max-w-screen-md mx-auto p-4 text-center my-4">
+      <h2 class="text-2xl font-bold mb-4">Verfügbare Routen</h2>
+      {loading.value && <p>Lade Routen…</p>}
+      {error.value && <p class="text-red-600 mb-4">{error.value}</p>}
 
-      {/* Fehlernachricht anzeigen, falls es einen Fehler beim Abrufen der Routen gab */}
-      {error && <p class="text-red-500">{error}</p>}
-
-      {/* Ladeanzeige */}
-      {loading && <p class="text-green-500">Lade Routen...</p>}
-
-      {/* Wenn keine Routen gefunden wurden */}
-      {routes.length === 0 && !loading && <p>Keine Routen gefunden.</p>}
-
-      <ul class="space-y-4">
-        {/* Dynamisch die Routen anzeigen */}
-        {routes.map((route) => (
-          <li key={route}>
-            <button type="button" onClick={() => handleRoute(route)}>
-              {route}
+      <ul class="list-disc list-inside space-y-2 mb-6 inline-block text-left">
+        {routes.value.map((r) => (
+          <li key={r}>
+            <button
+              type="button"
+              class="px-3 py-1 bg-gray-100 border rounded hover:bg-gray-200"
+              onClick={() => handleRoute(r)}
+            >
+              {r}
             </button>
           </li>
         ))}
       </ul>
 
-      {/* Details zur ausgewählten Route */}
-      {selectedRoute && (
-        <div class="mt-6 p-4 border rounded bg-gray-50">
-          <h3 class="font-bold">Details zu {selectedRoute}</h3>
-          <p>Hier können Details für die gewählte Route angezeigt werden.</p>
+      {selectedRoute.value && (
+        // Abstand vor Details
+        <div class="flex flex-col items-center text-center w-full mt-8 mb-6">
+          <h3 class="text-xl font-semibold mb-2">
+            Details zu <code>{selectedRoute.value}</code>
+          </h3>
+
+          {loadingDetails.value && <p>Lade Details…</p>}
+
+          {details.value && selectedRoute.value.startsWith("/api/reset-") && (
+            <>
+              <pre class="bg-gray-50 p-4 rounded overflow-x-auto whitespace-pre-wrap break-all text-left max-w-screen-md mb-2">
+                {JSON.stringify(details.value.data, null, 2)}
+              </pre>
+              <p class="text-green-600">{resetMessage.value}</p>
+            </>
+          )}
+
+          {details.value && selectedRoute.value === "/api/kv-dump" && (
+            <pre class="bg-gray-50 p-4 rounded overflow-x-auto whitespace-pre-wrap break-all text-left max-w-screen-md mb-2">
+              {JSON.stringify({ data: details.value.data }, null, 2)}
+            </pre>
+          )}
+
+          {details.value &&
+            !selectedRoute.value.startsWith("/api/reset-") &&
+            selectedRoute.value !== "/api/kv-dump" && (
+            <pre class="bg-gray-50 p-4 rounded overflow-x-auto whitespace-pre-wrap break-all text-left max-w-screen-md">
+              {JSON.stringify(details.value, null, 2)}
+            </pre>
+          )}
+
+          {!loadingDetails.value && !details.value && (
+            <p>Keine Details verfügbar.</p>
+          )}
         </div>
       )}
     </div>

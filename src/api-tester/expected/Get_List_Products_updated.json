@@ -39,7 +39,7 @@
         "currency": "string",
         "amount": "string"
       },
-      "shopPriceDisplay": "string",
+      "shopPriceDisplay": null,
       "ean": "string",
       "manufacturerName": "string",
       "manufacturerNumber": "string",
@@ -93,7 +93,7 @@
       "disabledReason": "string",
       "hidePriceOnDocuments": false,
       "ageRating": null,
-      "isStockItem": true,
+      "isStockItem": false,
       "isStockTakingDisabled": false,
       "hideJustInTimeItemsOnDocuments": false,
       "isShippingCostsProduct": false,
