@@ -83,7 +83,7 @@ export default function DashboardIsland() {
             }}
             class="px-8 py-4 text-2xl bg-green-600 text-white rounded-lg shadow hover:bg-green-700"
           >
-            Verfügbare Routen
+            Routen
           </button>
         </div>
       </div>

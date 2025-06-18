@@ -2,51 +2,77 @@
 /** islands/RunTestsIsland.tsx */
 import { useSignal } from "@preact/signals";
 
-export function RunTestsIsland() {
-  const status = useSignal<"idle" | "loading" | "success" | "error">("idle");
+// Panel-Style-Fabrik: weiß im Light, dunkelgrau im Dark
+const makePanelStyle = (dark: boolean) => ({
+  background: dark ? "#334155" : "#ffffff", // slate-700 vs. white
+  borderRadius: "0.75rem",
+  padding: "1rem",
+  boxShadow: dark ? "0 2px 8px rgba(0,0,0,0.4)" : "0 2px 8px rgba(0,0,0,0.1)",
+  marginTop: "1rem",
+  width: "100%",
+  maxWidth: "28rem",
+  textAlign: "center" as const,
+});
+
+// Props-Interface mit optionalem Dark-Mode
+interface RunTestsProps {
+  dark?: boolean;
+}
+
+export function RunTestsIsland({ dark = false }: RunTestsProps) {
+  const running = useSignal(false);
+  const completed = useSignal(false);
+  const slackSent = useSignal(false);
 
   const runTests = async () => {
-    status.value = "loading";
+    running.value = true;
+    completed.value = false;
+    slackSent.value = false;
     try {
       const res = await fetch("/api/run-tests");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      status.value = "success";
-
-      // Cron-Log updaten
-      const logRes = await fetch("/api/cron-log");
-      if (logRes.ok) {
-        const { lastRun } = (await logRes.json()) as { lastRun: string | null };
-        globalThis.dispatchEvent(
-          new CustomEvent("cron-updated", { detail: lastRun }),
-        );
-      }
-    } catch {
-      status.value = "error";
+      completed.value = true;
+      slackSent.value = true;
+    } catch (e) {
+      console.error(e);
+    } finally {
+      running.value = false;
     }
   };
 
   return (
-    <div class="my-4 flex flex-col items-center">
+    <div
+      style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+    >
       <button
         type="button"
-        class="px-8 py-4 w-64 text-3xl bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 disabled:opacity-50"
         onClick={runTests}
-        disabled={status.value === "loading"}
+        style={{
+          padding: "2rem 4rem",
+          fontSize: "1.25rem",
+          background: "#16a34a",
+          color: "#ffffff",
+          border: "none",
+          borderRadius: "0.75rem",
+          cursor: "pointer",
+        }}
       >
-        {status.value === "loading" ? "Starte Tests…" : "Tests starten"}
+        {running.value ? "Läuft…" : "Tests starten"}
       </button>
 
-      {status.value === "success" && (
-        <div class="mt-2 flex flex-col items-center space-y-1">
-          <p class="text-green-600">✅ Alle Tests abgeschlossen.</p>
-          <p class="text-green-600">
-            📩 Slack-Testbericht versendet und Blöcke gespeichert.
-          </p>
+      {(completed.value || slackSent.value) && (
+        <div style={makePanelStyle(dark)}>
+          {completed.value && (
+            <p style={{ margin: "0.5rem 0", color: "#16a34a" }}>
+              ✅ Alle Tests abgeschlossen.
+            </p>
+          )}
+          {slackSent.value && (
+            <p style={{ margin: "0.5rem 0" }}>
+              ✉️ Slack-Testbericht versendet und Blöcke gespeichert.
+            </p>
+          )}
         </div>
-      )}
-
-      {status.value === "error" && (
-        <p class="mt-2 text-red-600">❌ Fehler beim Ausführen der Tests.</p>
       )}
     </div>
   );

@@ -25,8 +25,7 @@ export function RoutesIsland() {
       .then((r) => r.ok ? r.json() : Promise.reject(r.status))
       .then((d: { routes: string[] }) => {
         routes.value = d.routes.filter((r) =>
-          r !== "/api/run-tests" &&
-          r !== "/api/get-config-endpoints"
+          r !== "/api/run-tests" && r !== "/api/get-config-endpoints"
         );
       })
       .catch(() => {
@@ -63,29 +62,57 @@ export function RoutesIsland() {
   };
 
   return (
-    <div class="flex flex-col items-center w-full max-w-screen-md mx-auto p-4 text-center my-4">
-      <h2 class="text-2xl font-bold mb-4">Verfügbare Routen</h2>
+    <div
+      style={{
+        width: "100%",
+        maxWidth: "768px",
+        margin: "1rem auto",
+        textAlign: "center",
+      }}
+    >
+      <h2
+        style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "1rem" }}
+      >
+        Routen
+      </h2>
       {loading.value && <p>Lade Routen…</p>}
-      {error.value && <p class="text-red-600 mb-4">{error.value}</p>}
+      {error.value && <p style={{ color: "red" }}>{error.value}</p>}
 
-      <ul class="list-disc list-inside space-y-2 mb-6 inline-block text-left">
-        {routes.value.map((r) => (
-          <li key={r}>
-            <button
-              type="button"
-              class="px-3 py-1 bg-gray-100 border rounded hover:bg-gray-200"
-              onClick={() => handleRoute(r)}
-            >
-              {r}
-            </button>
-          </li>
-        ))}
+      <ul style={{ listStyle: "none", padding: 0, marginBottom: "1.5rem" }}>
+        {routes.value.map((r) => {
+          const label = r.replace(/^\/api\//, "");
+          return (
+            <li key={r} style={{ marginBottom: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => handleRoute(r)}
+                style={{
+                  padding: "0.5rem 1rem",
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "0.375rem",
+                  cursor: "pointer",
+                  width: "100%",
+                  textAlign: "center",
+                }}
+              >
+                {label}
+              </button>
+            </li>
+          );
+        })}
       </ul>
 
       {selectedRoute.value && (
-        // Abstand vor Details
-        <div class="flex flex-col items-center text-center w-full mt-8 mb-6">
-          <h3 class="text-xl font-semibold mb-2">
+        <div style={{ textAlign: "left" }}>
+          <h3
+            style={{
+              fontSize: "1.25rem",
+              fontWeight: "600",
+              marginBottom: "0.5rem",
+            }}
+          >
             Details zu <code>{selectedRoute.value}</code>
           </h3>
 
@@ -93,15 +120,36 @@ export function RoutesIsland() {
 
           {details.value && selectedRoute.value.startsWith("/api/reset-") && (
             <>
-              <pre class="bg-gray-50 p-4 rounded overflow-x-auto whitespace-pre-wrap break-all text-left max-w-screen-md mb-2">
+              <pre
+                style={{
+                  background: "#000000",
+                  color: "#ffffff",
+                  padding: "1rem",
+                  borderRadius: "0.375rem",
+                  overflowX: "auto",
+                  marginBottom: "0.5rem",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                }}
+              >
                 {JSON.stringify(details.value.data, null, 2)}
               </pre>
-              <p class="text-green-600">{resetMessage.value}</p>
+              <p style={{ color: "green" }}>{resetMessage.value}</p>
             </>
           )}
 
           {details.value && selectedRoute.value === "/api/kv-dump" && (
-            <pre class="bg-gray-50 p-4 rounded overflow-x-auto whitespace-pre-wrap break-all text-left max-w-screen-md mb-2">
+            <pre
+              style={{
+                background: "#000000",
+                color: "#ffffff",
+                padding: "1rem",
+                borderRadius: "0.375rem",
+                overflowX: "auto",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+              }}
+            >
               {JSON.stringify({ data: details.value.data }, null, 2)}
             </pre>
           )}
@@ -109,7 +157,17 @@ export function RoutesIsland() {
           {details.value &&
             !selectedRoute.value.startsWith("/api/reset-") &&
             selectedRoute.value !== "/api/kv-dump" && (
-            <pre class="bg-gray-50 p-4 rounded overflow-x-auto whitespace-pre-wrap break-all text-left max-w-screen-md">
+            <pre
+              style={{
+                background: "#000000",
+                color: "#ffffff",
+                padding: "1rem",
+                borderRadius: "0.375rem",
+                overflowX: "auto",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+              }}
+            >
               {JSON.stringify(details.value, null, 2)}
             </pre>
           )}

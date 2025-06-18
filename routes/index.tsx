@@ -1,5 +1,5 @@
+// routes/index.tsx
 /** @jsxImportSource preact */
-/** routes/index.tsx */
 import { Head } from "$fresh/runtime.ts";
 import DashboardIsland from "../islands/DashboardIsland.tsx";
 
@@ -9,7 +9,9 @@ export default function Home() {
       <Head>
         <title>API-Tester Dashboard</title>
       </Head>
-      <DashboardIsland />
+      <main class="w-full h-screen m-0 p-0">
+        <DashboardIsland />
+      </main>
     </>
   );
 }
