@@ -7,6 +7,7 @@ import * as $_app from "./routes/_app.tsx";
 import * as $api_cron_log_stream from "./routes/api/cron-log-stream.ts";
 import * as $api_cron_log from "./routes/api/cron-log.ts";
 import * as $api_get_config_endpoints from "./routes/api/get-config-endpoints.ts";
+import * as $api_get_endpoint_expected from "./routes/api/get-endpoint-expected.ts";
 import * as $api_get_route_details from "./routes/api/get-route-details.ts";
 import * as $api_get_routes from "./routes/api/get-routes.ts";
 import * as $api_kv_dump from "./routes/api/kv-dump.ts";
@@ -36,6 +37,7 @@ const manifest = {
     "./routes/api/cron-log-stream.ts": $api_cron_log_stream,
     "./routes/api/cron-log.ts": $api_cron_log,
     "./routes/api/get-config-endpoints.ts": $api_get_config_endpoints,
+    "./routes/api/get-endpoint-expected.ts": $api_get_endpoint_expected,
     "./routes/api/get-route-details.ts": $api_get_route_details,
     "./routes/api/get-routes.ts": $api_get_routes,
     "./routes/api/kv-dump.ts": $api_kv_dump,

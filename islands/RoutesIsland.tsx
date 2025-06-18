@@ -24,9 +24,12 @@ export function RoutesIsland() {
     fetch("/api/get-routes")
       .then((r) => r.ok ? r.json() : Promise.reject(r.status))
       .then((d: { routes: string[] }) => {
-        routes.value = d.routes.filter((r) =>
-          r !== "/api/run-tests" && r !== "/api/get-config-endpoints"
-        );
+        routes.value = d.routes
+          .filter((r) =>
+            r !== "/api/run-tests" &&
+            r !== "/api/get-config-endpoints" &&
+            r !== "/api/get-endpoint-expected" // <-- entfernt
+          );
       })
       .catch(() => {
         error.value = "Fehler beim Laden der Routen.";
@@ -64,14 +67,17 @@ export function RoutesIsland() {
   return (
     <div
       style={{
-        width: "100%",
         maxWidth: "768px",
         margin: "1rem auto",
         textAlign: "center",
       }}
     >
       <h2
-        style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "1rem" }}
+        style={{
+          fontSize: "1.5rem",
+          fontWeight: "bold",
+          marginBottom: "1rem",
+        }}
       >
         Routen
       </h2>
@@ -105,11 +111,11 @@ export function RoutesIsland() {
       </ul>
 
       {selectedRoute.value && (
-        <div style={{ textAlign: "left" }}>
+        <div style={{ textAlign: "center" }}>
           <h3
             style={{
               fontSize: "1.25rem",
-              fontWeight: "600",
+              fontWeight: 600,
               marginBottom: "0.5rem",
             }}
           >
@@ -122,14 +128,15 @@ export function RoutesIsland() {
             <>
               <pre
                 style={{
-                  background: "#000000",
-                  color: "#ffffff",
+                  background: "#000",
+                  color: "#fff",
                   padding: "1rem",
                   borderRadius: "0.375rem",
                   overflowX: "auto",
                   marginBottom: "0.5rem",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-all",
+                  textAlign: "left",
                 }}
               >
                 {JSON.stringify(details.value.data, null, 2)}
@@ -141,13 +148,14 @@ export function RoutesIsland() {
           {details.value && selectedRoute.value === "/api/kv-dump" && (
             <pre
               style={{
-                background: "#000000",
-                color: "#ffffff",
+                background: "#000",
+                color: "#fff",
                 padding: "1rem",
                 borderRadius: "0.375rem",
                 overflowX: "auto",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-all",
+                textAlign: "left",
               }}
             >
               {JSON.stringify({ data: details.value.data }, null, 2)}
@@ -159,16 +167,17 @@ export function RoutesIsland() {
             selectedRoute.value !== "/api/kv-dump" && (
             <pre
               style={{
-                background: "#000000",
-                color: "#ffffff",
+                background: "#000",
+                color: "#fff",
                 padding: "1rem",
                 borderRadius: "0.375rem",
                 overflowX: "auto",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-all",
+                textAlign: "left",
               }}
             >
-              {JSON.stringify(details.value, null, 2)}
+                {JSON.stringify(details.value, null, 2)}
             </pre>
           )}
 
