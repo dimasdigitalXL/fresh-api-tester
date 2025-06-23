@@ -37,6 +37,7 @@
         "id": "string"
       },
       "currency": "string",
+      "costCenter": null,
       "billingAddress": {
         "name": "string",
         "department": "string",
@@ -81,7 +82,9 @@
         "state": "string",
         "country": "string",
         "gln": "string"
-      }
+      },
+      "preferredWarehouse": null,
+      "storageCountry": null
     },
     "netSales": {
       "amount": "string",
@@ -103,162 +106,6 @@
           "name": "string",
           "description": "string",
           "freeFields": [
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
-            {
-              "id": "string",
-              "value": "string"
-            },
             {
               "id": "string",
               "value": "string"

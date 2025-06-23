@@ -28,7 +28,7 @@
       },
       "query": {},
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Sales_Order_updated_v1.json"
+      "expectedStructure": "expected/Get_View_Sales_Order_updated.json"
     },
     {
       "name": "Get List Products",
@@ -56,7 +56,7 @@
         "Authorization": "Bearer ${BEARER_TOKEN}"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Product.json"
+      "expectedStructure": "expected/Get_View_Product_updated.json"
     },
     {
       "name": "Delete Product",
@@ -89,7 +89,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Invoice.json"
+      "expectedStructure": "expected/Get_View_Invoice_updated.json"
     },
     {
       "name": "Get List Customers",
@@ -99,7 +99,7 @@
         "Accept": "application/json",
         "Authorization": "Bearer ${BEARER_TOKEN}"
       },
-      "expectedStructure": "expected/Get_List_Customers_updated.json",
+      "expectedStructure": "expected/Get_List_Customers_updated_v1.json",
       "requiresId": false,
       "versionChanged": true
     },
@@ -113,7 +113,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Customer_updated.json",
+      "expectedStructure": "expected/Get_View_Customer_updated_v1.json",
       "versionChanged": true
     },
     {
@@ -126,7 +126,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Delivery_Note.json"
+      "expectedStructure": "expected/Get_View_Delivery_Note_updated.json"
     },
     {
       "name": "Get View Purchase Order",

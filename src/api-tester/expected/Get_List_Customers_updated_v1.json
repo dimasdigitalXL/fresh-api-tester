@@ -1,0 +1,74 @@
+{
+  "data": [
+    {
+      "id": "string",
+      "uuid": "string",
+      "number": "string",
+      "deviatingCustomerNumber": "string",
+      "customerType": "string",
+      "name": "string",
+      "firstname": "string",
+      "lastname": "string",
+      "title": "string",
+      "salutation": null,
+      "birthdate": null,
+      "department": "string",
+      "subDepartment": "string",
+      "projects": [
+        {
+          "id": "string"
+        }
+      ],
+      "contactDetails": {
+        "email": "string",
+        "phone": null,
+        "fax": null,
+        "website": null,
+        "additionalData": []
+      },
+      "accountManager": null,
+      "salesManager": {
+        "id": "string"
+      },
+      "isLead": false,
+      "contactPerson": "string",
+      "documentDelivery": {
+        "offer": {
+          "email": "string",
+          "cc": "string"
+        },
+        "salesOrder": {
+          "email": "string",
+          "cc": "string"
+        },
+        "invoice": {
+          "email": "string",
+          "cc": "string"
+        },
+        "creditNote": {
+          "email": "string",
+          "cc": "string"
+        },
+        "deliveryNote": {
+          "email": "string",
+          "cc": "string"
+        },
+        "purchaseOrder": {
+          "email": "string",
+          "cc": "string"
+        },
+        "dunning": {
+          "email": null,
+          "cc": null
+        }
+      }
+    }
+  ],
+  "extra": {
+    "totalCount": 0,
+    "page": {
+      "number": 0,
+      "size": 0
+    }
+  }
+}

@@ -20,6 +20,7 @@ import * as $api_slack from "./routes/api/slack.ts";
 import * as $api_test_kv from "./routes/api/test-kv.ts";
 import * as $greet_name_ from "./routes/greet/[name].tsx";
 import * as $index from "./routes/index.tsx";
+import * as $CompareIsland from "./islands/CompareIsland.tsx";
 import * as $Counter from "./islands/Counter.tsx";
 import * as $DashboardIsland from "./islands/DashboardIsland.tsx";
 import * as $EndpointsIsland from "./islands/EndpointsIsland.tsx";
@@ -52,6 +53,7 @@ const manifest = {
     "./routes/index.tsx": $index,
   },
   islands: {
+    "./islands/CompareIsland.tsx": $CompareIsland,
     "./islands/Counter.tsx": $Counter,
     "./islands/DashboardIsland.tsx": $DashboardIsland,
     "./islands/EndpointsIsland.tsx": $EndpointsIsland,
