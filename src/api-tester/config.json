@@ -56,7 +56,7 @@
         "Authorization": "Bearer ${BEARER_TOKEN}"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Product_updated.json"
+      "expectedStructure": "expected/Get_View_Product_updated_v1.json"
     },
     {
       "name": "Delete Product",
