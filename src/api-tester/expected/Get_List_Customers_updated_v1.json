@@ -58,8 +58,8 @@
           "cc": "string"
         },
         "dunning": {
-          "email": null,
-          "cc": null
+          "email": "string",
+          "cc": "string"
         }
       }
     }
