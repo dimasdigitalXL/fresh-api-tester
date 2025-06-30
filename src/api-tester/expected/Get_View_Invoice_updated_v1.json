@@ -1,0 +1,109 @@
+{
+  "data": {
+    "id": "string",
+    "documentNumber": "string",
+    "documentDate": "string",
+    "log": {
+      "createdBy": {
+        "name": "string"
+      },
+      "sentBy": {
+        "name": "string"
+      },
+      "createdAt": "string",
+      "sentAt": null,
+      "updatedAt": "string"
+    },
+    "amountGross": 0,
+    "amountNet": 0,
+    "costCenter": "string",
+    "status": "string",
+    "project": {
+      "id": "string",
+      "name": "string",
+      "abbreviation": "string"
+    },
+    "customer": {
+      "id": "string",
+      "name": "string"
+    },
+    "externalOrderReference": "string",
+    "devCustomer": "string",
+    "billingAddress": {
+      "id": "string",
+      "name": "string",
+      "contactPerson": "string",
+      "department": "string",
+      "subdivision": "string",
+      "street": "string",
+      "additionalDetails": "string",
+      "city": "string",
+      "zipCode": "string",
+      "country": "string",
+      "email": "string"
+    },
+    "paymentMethodName": "string",
+    "paymentStatus": "string",
+    "dunning": "string",
+    "dunningDate": "string",
+    "gln": "string",
+    "taxation": 0,
+    "tags": [],
+    "salesOrder": {
+      "id": "string",
+      "documentNumber": "string"
+    },
+    "positions": [
+      {
+        "id": 0,
+        "position": 0,
+        "saleOrderPositionId": 0,
+        "salesOrderId": "string",
+        "createdAt": "string",
+        "productId": 0,
+        "productNumber": "string",
+        "description": "string",
+        "quantity": 0,
+        "price": {
+          "amount": "string",
+          "currency": "string"
+        },
+        "basePrice": {
+          "amount": "string",
+          "currency": "string"
+        },
+        "netRevenueSingle": {
+          "amount": "string",
+          "currency": "string"
+        },
+        "netRevenueTotal": {
+          "amount": "string",
+          "currency": "string"
+        },
+        "grossRevenueSingle": {
+          "amount": "string",
+          "currency": "string"
+        },
+        "grossRevenueTotal": {
+          "amount": "string",
+          "currency": "string"
+        },
+        "vatCategory": "string",
+        "taxRate": 0,
+        "discount": 0
+      }
+    ],
+    "paymentTerms": {
+      "earlyPaymentDiscount": 0,
+      "earlyPaymentDate": "string",
+      "dueDate": "string"
+    },
+    "dunningSettings": {
+      "level": "string",
+      "date": "string",
+      "comment": "string",
+      "sent": false
+    },
+    "dunningManualSettings": null
+  }
+}

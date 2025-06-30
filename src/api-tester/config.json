@@ -89,7 +89,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Invoice_updated.json"
+      "expectedStructure": "expected/Get_View_Invoice_updated_v1.json"
     },
     {
       "name": "Get List Customers",
@@ -113,7 +113,7 @@
         "Content-Type": "application/json"
       },
       "requiresId": true,
-      "expectedStructure": "expected/Get_View_Customer_updated_v1.json",
+      "expectedStructure": "expected/Get_View_Customer_updated_v2.json",
       "versionChanged": true
     },
     {
