@@ -18,15 +18,28 @@ export function LastRunIsland() {
         const { lastRun: lr } = JSON.parse(e.data) as {
           lastRun: string | null;
         };
-        lastRun.value = lr ?? "unbekannt";
+        if (lr) {
+          const date = new Date(lr);
+          // Immer in Europe/Berlin anzeigen, unabhängig von Server-Zeitzone
+          lastRun.value = date.toLocaleString("de-DE", {
+            timeZone: "Europe/Berlin",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+        } else {
+          lastRun.value = "unbekannt";
+        }
       } catch {
-        // parse error — nichts tun
+        // Parse-Fehler ignorieren
       }
     };
 
     es.onerror = () => {
       lastRun.value = "Fehler beim Stream. Reconnect…";
-      // SSE reconnectet automatisch
     };
 
     return () => {

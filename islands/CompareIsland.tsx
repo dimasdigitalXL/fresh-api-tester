@@ -9,20 +9,41 @@ export interface RecursiveDiffProps {
 }
 
 export function RecursiveDiff({ old, neu, depth = 0 }: RecursiveDiffProps) {
-  console.log("Vergleich: Old:", old); // Logge die alten Daten
-  console.log("Vergleich: Neu:", neu); // Logge die neuen Daten
+  // Debug-Logs (können entfernt werden, wenn alles funktioniert)
+  console.log("Vergleich – Old:", old);
+  console.log("Vergleich – Neu:", neu);
 
-  // 1) Wenn beides Arrays sind: Vergleich der einzelnen Elemente
+  // Workaround: Wenn einer ein Array und der andere ein Objekt ist,
+  // packe den Objekt-Wert in ein Array, damit der Array-Vergleich greift.
+  if (Array.isArray(old) && !Array.isArray(neu)) {
+    return (
+      <RecursiveDiff
+        old={old}
+        neu={[neu] as JSONArray}
+        depth={depth}
+      />
+    );
+  }
+  if (!Array.isArray(old) && Array.isArray(neu)) {
+    return (
+      <RecursiveDiff
+        old={[old] as JSONArray}
+        neu={neu}
+        depth={depth}
+      />
+    );
+  }
+
+  // 1) Beide Arrays → Element-für-Element vergleichen
   if (Array.isArray(old) && Array.isArray(neu)) {
     const length = Math.max(old.length, neu.length);
     const items: preact.VNode[] = [];
-
     for (let i = 0; i < length; i++) {
-      const o = old[i] ?? {}; // Fallback auf leeres Objekt, falls Element nicht existiert
-      const n = neu[i] ?? {}; // Fallback auf leeres Objekt, falls Element nicht existiert
+      const o = old[i] ?? {};
+      const n = neu[i] ?? {};
       items.push(
         <RecursiveDiff
-          key={`array-item-${i}`}
+          key={`array-${depth}-${i}`}
           old={o}
           neu={n}
           depth={depth}
@@ -32,25 +53,18 @@ export function RecursiveDiff({ old, neu, depth = 0 }: RecursiveDiffProps) {
     return <>{items}</>;
   }
 
-  // 2) Wenn eines der Daten ein Array ist, aber das andere ein Objekt (z.B. Get_View)
-  if (Array.isArray(old) && !Array.isArray(neu)) {
-    return (
-      <RecursiveDiff
-        old={old[0] ?? {}}
-        neu={neu}
-        depth={depth}
-      />
-    );
-  }
-
-  // 3) Wenn es sich um ein Objekt handelt (z.B. Get_View): Direkter Vergleich des Objekts
+  // 2) Both are objects → Key-basierter Vergleich
   if (
-    typeof old === "object" && old !== null &&
-    typeof neu === "object" && neu !== null
+    typeof old === "object" &&
+    old !== null &&
+    typeof neu === "object" &&
+    neu !== null
   ) {
-    // Überprüfen, ob `neu` leer ist
-    if (Object.keys(neu).length === 0) {
-      console.log("Leere Antwort für Get_View:", neu); // Logge leere Antwort
+    const oObj = old as JSONObject;
+    const nObj = neu as JSONObject;
+
+    // Wenn das neue Objekt komplett leer ist, Hinweis anzeigen
+    if (Object.keys(nObj).length === 0) {
       return (
         <div style={{ paddingLeft: depth * 16 + "px" }}>
           <span style={{ color: "#f87171" }}>
@@ -60,8 +74,7 @@ export function RecursiveDiff({ old, neu, depth = 0 }: RecursiveDiffProps) {
       );
     }
 
-    const oObj = old as JSONObject;
-    const nObj = neu as JSONObject;
+    // Schlüssel-Merge: erst alte Reihenfolge, dann neue ergänzen
     const keys = Object.keys(oObj).concat(
       Object.keys(nObj).filter((k) => !(k in oObj)),
     );
@@ -75,20 +88,25 @@ export function RecursiveDiff({ old, neu, depth = 0 }: RecursiveDiffProps) {
       const oVal = oObj[key];
       const nVal = nObj[key];
 
-      console.log(`Vergleich für Schlüssel: ${key}`, oVal, nVal); // Logge die Werte für jeden Schlüssel
+      console.log(`Vergleich für Schlüssel "${key}":`, oVal, nVal);
 
       const isPrimitive = (typeof oVal !== "object" || oVal === null) &&
         (typeof nVal !== "object" || nVal === null);
-      const unchanged = hasOld && hasNew &&
+      const unchanged = hasOld &&
+        hasNew &&
         JSON.stringify(oVal) === JSON.stringify(nVal) &&
         isPrimitive;
 
+      // 2a) Unverändert (nur einmal „(...)“ darstellen)
       if (unchanged) {
         if (!inUnchangedRun) {
           items.push(
             <li
               key={`ellipsis-${depth}-${key}`}
-              style={{ color: "#888888", paddingLeft: depth * 16 + "px" }}
+              style={{
+                color: "#888888",
+                paddingLeft: depth * 16 + "px",
+              }}
             >
               (…)
             </li>,
@@ -99,36 +117,48 @@ export function RecursiveDiff({ old, neu, depth = 0 }: RecursiveDiffProps) {
       }
       inUnchangedRun = false;
 
+      // 2b) Entfernte Keys
       if (hasOld && !hasNew) {
         items.push(
           <li
             key={`-_${key}`}
-            style={{ color: "#f87171", paddingLeft: depth * 16 + "px" }}
+            style={{
+              color: "#f87171",
+              paddingLeft: depth * 16 + "px",
+            }}
           >
             − {key}: {JSON.stringify(oVal)}
           </li>,
         );
         continue;
       }
-
+      // 2c) Neue Keys
       if (!hasOld && hasNew) {
         items.push(
           <li
             key={`+_${key}`}
-            style={{ color: "#4ade80", paddingLeft: depth * 16 + "px" }}
+            style={{
+              color: "#4ade80",
+              paddingLeft: depth * 16 + "px",
+            }}
           >
             + {key}: {JSON.stringify(nVal)}
           </li>,
         );
         continue;
       }
-
+      // 2d) Verschachtelte Objekte/Arrays
       if (
-        typeof oVal === "object" && oVal !== null &&
-        typeof nVal === "object" && nVal !== null
+        typeof oVal === "object" &&
+        oVal !== null &&
+        typeof nVal === "object" &&
+        nVal !== null
       ) {
         items.push(
-          <li key={`=_${key}`} style={{ paddingLeft: depth * 16 + "px" }}>
+          <li
+            key={`=_${key}`}
+            style={{ paddingLeft: depth * 16 + "px" }}
+          >
             <strong>{key}:</strong>
             <RecursiveDiff
               old={oVal as JSONObject | JSONArray}
@@ -139,12 +169,15 @@ export function RecursiveDiff({ old, neu, depth = 0 }: RecursiveDiffProps) {
         );
         continue;
       }
-
+      // 2e) Geänderte primitive Werte
       if (oVal !== nVal) {
         items.push(
           <li
             key={`~_${key}`}
-            style={{ color: "#facc15", paddingLeft: depth * 16 + "px" }}
+            style={{
+              color: "#facc15",
+              paddingLeft: depth * 16 + "px",
+            }}
           >
             ~ {key}: {JSON.stringify(oVal)} → {JSON.stringify(nVal)}
           </li>,
@@ -153,7 +186,10 @@ export function RecursiveDiff({ old, neu, depth = 0 }: RecursiveDiffProps) {
       }
     }
 
-    if (items.length === 0) return null;
+    if (items.length === 0) {
+      // Keine Einträge → keine Anzeige
+      return null;
+    }
 
     return (
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -162,7 +198,7 @@ export function RecursiveDiff({ old, neu, depth = 0 }: RecursiveDiffProps) {
     );
   }
 
-  // 4) Wenn es primitive Werte sind, direkt vergleichen
+  // 3) Primitive Werte → nur anzeigen, wenn unterschiedlich
   if (old !== neu) {
     return (
       <div style={{ paddingLeft: depth * 16 + "px" }}>
@@ -173,5 +209,6 @@ export function RecursiveDiff({ old, neu, depth = 0 }: RecursiveDiffProps) {
     );
   }
 
+  // 4) Alles andere → nichts anzeigen
   return null;
 }
